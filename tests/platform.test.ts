@@ -19,7 +19,7 @@ describe('combined platform',()=>{
   async function access(){
     const a=await actor('paramedic'),p=store.get<Profile>('profile',pid)!;
     const link=await a.post(base+'/linkage').send({locator:p.locator});
-    const grant=await a.post(base+'/grants').send({requestId:crypto.randomUUID(),...link.body,deviceId:'test',purpose:'Emergency demonstration',confirmed:true});
+    const grant=await a.post(base+'/grants').send({requestId:crypto.randomUUID(),...link.body,deviceId:'test',purpose:'Emergency demonstration',confirmed:true,identityVerified:true});
     expect(grant.status).toBe(200);return {a,grant:grant.body};
   }
   it('lab → patient release → paramedic dispatch → destination hospital → receipt',async()=>{
@@ -59,7 +59,7 @@ describe('combined platform',()=>{
     const a=await actor('paramedic');
     await request(app).post(base+'/rfid/scans').set('Authorization','Bearer synthetic-reader-secret-change-before-hardware').send({version:1,deviceId:'reader-demo',eventId,tagUid:'DEADBEEF'});
     const link=(await a.get(base+'/rfid/pending')).body;
-    const result=await a.post(base+'/grants').send({requestId:crypto.randomUUID(),patientId:link.patientId,linkageId:link.linkageId,deviceId:'staff-browser',purpose:'RFID emergency summary',confirmed:true});
+    const result=await a.post(base+'/grants').send({requestId:crypto.randomUUID(),patientId:link.patientId,linkageId:link.linkageId,deviceId:'staff-browser',purpose:'RFID emergency summary',confirmed:true,identityVerified:true});
     expect(result.status).toBe(200);
     return a;
   }
@@ -141,7 +141,7 @@ describe('combined platform',()=>{
     const patient=await actor('siddharth');
     const profile=await patient.get(base+'/profiles/'+pid);
     const link=await requester.post(base+'/linkage').send({locator:profile.body.locator});
-    const pending=await requester.post(base+'/break-glass').send({requestId:'break-1',...link.body,deviceId:'review-browser',purpose:'Synthetic emergency review',confirmed:true});
+    const pending=await requester.post(base+'/break-glass').send({requestId:'break-1',...link.body,deviceId:'review-browser',purpose:'Synthetic emergency review',confirmed:true,identityVerified:true});
     expect(pending.status).toBe(200);
     expect((await requester.post(base+'/break-glass/'+pending.body.id+'/approve').send({requestId:'self-approval'})).status).toBe(404);
     const approver=await actor('approver');
@@ -186,7 +186,7 @@ describe('combined platform',()=>{
     expect(profile.body.release.allowedEntryIds).toEqual([]);expect(store.get('tag','CAFE1234')).toEqual({patientId:reg.body.patientId,revoked:false});
     const medic=await actor('paramedic');
     const link=await medic.post(base+'/linkage').send({locator:reg.body.locator});expect(link.body.patientId).toBe(reg.body.patientId);
-    const grant=await medic.post(base+'/grants').send({requestId:'g-reg',...link.body,deviceId:'test',purpose:'Emergency demonstration',confirmed:true});
+    const grant=await medic.post(base+'/grants').send({requestId:'g-reg',...link.body,deviceId:'test',purpose:'Emergency demonstration',confirmed:true,identityVerified:true});
     expect((await medic.post(base+'/cards').send({grantId:grant.body.id})).body.entries).toEqual([]);
   });
   it('limits registration to hospital staff and rejects duplicate usernames or tags',async()=>{
@@ -249,7 +249,7 @@ describe('combined platform',()=>{
       expect((await request(app).post(base+'/rfid/scans').set('Authorization','Bearer synthetic-reader-secret-change-before-hardware').send({version:1,deviceId:'reader-demo',eventId,tagUid:card.tagUid})).status).toBe(200);
       expect((await lcd(eventId)).body).toEqual({state:'WAITING_APPROVAL',name:card.name,demo:true});
       const link=(await a.get(base+'/rfid/pending')).body;
-      const g=await a.post(base+'/grants').send({requestId:'demo-grant-'+i,patientId:link.patientId,linkageId:link.linkageId,deviceId:'browser',purpose:'Fictional demo review',confirmed:true});
+      const g=await a.post(base+'/grants').send({requestId:'demo-grant-'+i,patientId:link.patientId,linkageId:link.linkageId,deviceId:'browser',purpose:'Fictional demo review',confirmed:true,identityVerified:true});
       expect(g.status).toBe(200);
       const displayed=(await lcd(eventId)).body;
       expect(displayed.state).toBe('AUTHORIZED');expect(displayed.card.demo).toBe(true);

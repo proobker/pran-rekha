@@ -31,7 +31,7 @@ export function operationsRouter(store:PlatformStore,clock:()=>Date){
       if(!['clinician','paramedic'].includes(s.role))throw new Error('FORBIDDEN');
       const link=store.get<{actor:string;patient:string;expiresAt:string}>('link',input.linkageId);
       if(!link||link.actor!==s.id||link.patient!==input.patientId||Date.parse(link.expiresAt)<=clock().getTime())throw new Error('FORBIDDEN');
-      const p=store.get<Profile>('profile',input.patientId);if(!p||p.release.revoked)throw new Error('GRANT_REVOKED');
+      const p=store.get<Profile>('profile',input.patientId);if(!p||p.release.revoked)throw new Error('GRANT_REVOKED');if(!p.release.allowedEntryIds.length)throw new Error('NO_APPROVED_SCOPE');
       res.json(store.mutate(s.id,input.requestId,input,()=>{
         const pending:RequestRecord={id:randomUUID(),actor:s.id,patient:p.id,purpose:input.purpose,deviceId:input.deviceId,releaseRevision:p.release.revision,status:'PENDING',expiresAt:new Date(clock().getTime()+300000).toISOString()};
         store.put('break-glass',pending.id,pending);
@@ -42,7 +42,7 @@ export function operationsRouter(store:PlatformStore,clock:()=>Date){
   });
   router.get('/break-glass',(_req,res,next)=>{
     try{const s=res.locals.staff as Staff;if(s.role!=='clinician'||s.facility!=='hospital-demo')throw new Error('FORBIDDEN');
-      res.json(store.all<RequestRecord>('break-glass').filter(r=>r.status==='PENDING'&&r.actor!==s.id));
+      res.json(store.all<RequestRecord>('break-glass').filter(r=>r.status==='PENDING'&&r.actor!==s.id).map(r=>({...r,approvedEntryCount:store.get<Profile>('profile',r.patient)?.release.allowedEntryIds.length??0})));
     }catch(e){next(e);}
   });
   router.post('/break-glass/:id/approve',(req,res,next)=>{

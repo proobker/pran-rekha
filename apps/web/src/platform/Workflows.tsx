@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { MedicationRecord, PrescriptionView } from '@pran-rekha/contracts';
+import type { Card } from '@pran-rekha/contracts/platform';
 import { api, requestId } from './client';
 import { Localized } from './Localized';
 type Doc={id:string;title:string;pages:string[];status:string};
@@ -49,12 +50,21 @@ export function RecordWorkflows({patientId,revision,onChange,clinician=false}:{p
     </article>)}</div>
   </section></Localized>;
 }
-export function BreakGlass({hospital=false,link,purpose}:{hospital?:boolean;link?:{patientId:string;linkageId:string}|null;purpose?:string}){
-  const [requests,setRequests]=useState<{id:string;purpose:string;status:string}[]>([]),[id,setId]=useState(''),[message,setMessage]=useState('');
+export function BreakGlass({hospital=false,link,purpose,identityVerified=false}:{hospital?:boolean;link?:{patientId:string;linkageId:string}|null;purpose?:string;identityVerified?:boolean}){
+  const [requests,setRequests]=useState<{id:string;patient:string;approvedEntryCount:number;purpose:string;status:string}[]>([]),[id,setId]=useState(''),[message,setMessage]=useState('');
+  const [card,setCard]=useState<Card|null>(null);
   async function run(action:()=>Promise<unknown>){try{setMessage(JSON.stringify(await action()));}catch(e){setMessage(String(e));}}
-  return <Localized><section className="surface"><h2>Connected break-glass review</h2><p>Requires a distinct clinician approval. Explicitly revoked scopes remain unavailable.</p>
-    {hospital?<><button onClick={()=>void run(async()=>{const rows=await api<typeof requests>('platform/break-glass');setRequests(rows);return {pending:rows.length};})}>Load approval queue</button>{requests.map(r=><p key={r.id}>{r.purpose}<button onClick={()=>void run(()=>api('platform/break-glass/'+r.id+'/approve',{requestId:requestId()}))}>Approve five-minute access</button></p>)}</>
-    :<><button disabled={!link} onClick={()=>void run(async()=>{const result=await api<{id:string}>('platform/break-glass',{requestId:requestId(),...link,purpose:purpose??'Emergency review request',deviceId:'staff-browser',confirmed:true});setId(result.id);return result;})}>Request independent approval</button>{id&&<button onClick={()=>void run(()=>api('platform/break-glass/'+id))}>Check approval</button>}</>}
+  return <Localized><section className="surface"><h2>Second-clinician approval</h2><p>Requests access to entries the patient already approved. It cannot expand scope or bypass revocation; verify two identifiers first.</p>
+    {hospital?<><button onClick={()=>void run(async()=>{const rows=await api<typeof requests>('platform/break-glass');setRequests(rows);return {pending:rows.length};})}>Load approval queue</button>{requests.map(r=><p key={r.id}>Patient {r.patient} · {r.approvedEntryCount} entries · {r.purpose}<button onClick={()=>void run(()=>api('platform/break-glass/'+r.id+'/approve',{requestId:requestId()}))}>Approve five-minute access</button></p>)}</>
+    :<><button disabled={!link||!identityVerified} onClick={()=>void run(async()=>{const result=await api<{id:string}>('platform/break-glass',{requestId:requestId(),...link,purpose:purpose??'Emergency review request',deviceId:'staff-browser',confirmed:true,identityVerified:true});setId(result.id);return result;})}>Request independent approval</button>{id&&<button onClick={()=>void run(async()=>{const result=await api<{status:string;grantId?:string}>('platform/break-glass/'+id);if(result.grantId)setCard(await api<Card>('platform/cards',{grantId:result.grantId}));return result;})}>Check approval</button>}{card&&<><p>{card.notice}</p>{card.entries.map(entry=><article className="entry" key={entry.id}><strong>{entry.kind}: {entry.text}</strong><p>{entry.date} · {entry.source}</p></article>)}</>}</>}
     <p role="status">{message}</p>
   </section></Localized>;
+}
+
+export function LabAccess({patients}:{patients:{id:string;name:string}[]}){
+  const [patientId,setPatientId]=useState(patients[0]?.id??''),[assigned,setAssigned]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  useEffect(()=>{if(!patients.some(p=>p.id===patientId))setPatientId(patients[0]?.id??'');},[patients,patientId]);
+  useEffect(()=>{if(!patientId){setAssigned(false);return;}void api<{assigned:boolean}>('platform/profiles/'+patientId+'/lab-access').then(r=>setAssigned(r.assigned)).catch(e=>setError(String(e)));},[patientId]);
+  async function toggle(){setBusy(true);setError('');try{const result=await api<{assigned:boolean}>('platform/profiles/'+patientId+'/lab-access',{requestId:requestId(),active:!assigned});setAssigned(result.assigned);}catch(e){setError(String(e));}finally{setBusy(false);}}
+  return <Localized><section className="surface"><h2>Laboratory access</h2>{!patients.length?<p>No patients are assigned to this hospital account.</p>:<><label>Patient<select value={patientId} onChange={e=>setPatientId(e.target.value)}>{patients.map(p=><option key={p.id} value={p.id}>{p.name} · {p.id}</option>)}</select></label><p>{assigned?'The demo laboratory can review and update this patient.':'The demo laboratory cannot access this patient.'}</p><button disabled={busy||!patientId} onClick={()=>void toggle()}>{assigned?'Remove lab access':'Assign to lab'}</button></>}{error&&<p role="alert" className="error">{error}</p>}</section></Localized>;
 }

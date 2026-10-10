@@ -22,3 +22,21 @@ export function toCandidates(lines:{text:string;confidence:number;alternative?:s
     .filter(l=>l.text.replace(/[^\p{L}\p{N}]/gu,'').length>=3)
     .map((l,i)=>{const fixed=correctLine(l.text);return {id:'line-'+i,original:l.text,text:fixed.text,kind:categorize(fixed.text),confidence:l.confidence,include:true,corrections:fixed.changed,...(l.alternative?{alternative:l.alternative}:{})};});
 }
+
+const diagnosisSection=/\b(diagnosis|impression|clinical impression|clinical diagnosis|provisional diagnosis|final diagnosis|interpretation|assessment|history of|known case of)\b|(?:निदान|निष्कर्ष|रोगको इतिहास|रोगको पहिचान)/i;
+const diagnosisHeading=/^\s*(?:diagnosis|impression|clinical impression|clinical diagnosis|provisional diagnosis|final diagnosis|assessment|interpretation|निदान|निष्कर्ष|रोगको इतिहास|रोगको पहिचान)\s*[:\-–]?\s*$/i;
+const otherSectionHeading=/^\s*(?:results?|investigations?|test(?:s)?|reference range|specimen|patient details|remarks|comments?|recommendations?|रिपोर्ट विवरण|परीक्षण नतिजा)\s*[:\-–]?\s*$/i;
+const explicitCondition=/\b(diabet(?:es)?|\bdm\b|hypertension|htn|asthma|copd|chronic kidney disease|ckd|epilepsy|hypothyroid(?:ism)?|hyperthyroid(?:ism)?|anemia|anaemia|tuberculosis|\btb\b|dengue|malaria|hepatitis|hiv|cancer|carcinoma|migraine|thyroid disorder)\b|(?:मधुमेह|उच्च रक्तचाप|दम|क्षयरोग|मलेरिया|डेंगु|रक्तअल्पता|क्यान्सर)/i;
+// For lab reports, only explicit narrative diagnosis sections create a condition candidate.
+// A flagged or abnormal test value is never converted into a disease by this rule.
+export function toLabReportCandidates(lines:{text:string;confidence:number;alternative?:string}[]):Candidate[]{
+  let inDiagnosisSection=false;
+  return lines.map((line,i)=>{
+    const original=line.text.replace(/\s+/g,' ').trim();
+    if(diagnosisHeading.test(original))inDiagnosisSection=true;
+    else if(otherSectionHeading.test(original))inDiagnosisSection=false;
+    const condition=(diagnosisSection.test(original)||inDiagnosisSection)&&explicitCondition.test(original);
+    const kind:Candidate['kind']=condition?'condition':'report';
+    return {id:'lab-line-'+i,original,text:original,kind,confidence:line.confidence,include:Boolean(original),...(line.alternative?{alternative:line.alternative}:{})};
+  }).filter(row=>row.original.replace(/[^\p{L}\p{N}]/gu,'').length>=3);
+}

@@ -20,6 +20,29 @@ const ne: Record<string, string> = {
   'FICTIONAL DEMO: date of birth and medical details are generated samples, not verified medical history.':'काल्पनिक डेमो: जन्ममिति र स्वास्थ्य विवरण नमुना हुन्, पुष्टि गरिएको स्वास्थ्य इतिहास होइन।',
   'Date of birth:':'जन्ममिति:','Opaque emergency locator QR':'आपत्कालीन परिचायक QR कोड','Review overdue':'पुनरावलोकन म्याद नाघेको',
   'Review schedule; current health and medication use require separate assessment.':'पुनरावलोकन तालिका; हालको स्वास्थ्य र औषधि प्रयोगको छुट्टै मूल्याङ्कन आवश्यक छ।',
+  'Review schedule; it does not confirm individual entries are current. Current health and medication use require separate assessment.':'पुनरावलोकन तालिकाले प्रत्येक विवरण अद्यावधिक छ भन्ने पुष्टि गर्दैन। हालको स्वास्थ्य र औषधि प्रयोगको छुट्टै मूल्याङ्कन आवश्यक छ।',
+  'I verified two identifiers against the patient, wristband, or authorized caregiver. Card/QR/face match alone is not identity proof.':'मैले बिरामी, नाडीपट्टी वा अधिकृत हेरचाहकर्तासँग दुई परिचायक जाँचेको छु। कार्ड/QR/अनुहार मिलान मात्र पहिचानको प्रमाण होइन।',
+  ' and the emergency purpose is appropriate.':' र आपत्कालीन पहुँचको कारण उपयुक्त छ।',
+  'Recorded ':'अभिलेख मिति ',' · verify currentness before use':' · प्रयोगअघि हालको अवस्था पुष्टि गर्नुहोस्',
+  'Second-clinician approval':'दोस्रो चिकित्सकको स्वीकृति','For already approved scope only':'पहिले नै स्वीकृत विवरणका लागि मात्र',
+  'Face data and privacy':'अनुहारको विवरण र गोपनीयता','Stored face photo and template are deleted automatically after 30 days, or you can remove them now.':'सुरक्षित अनुहारको तस्बिर र टेम्प्लेट ३० दिनपछि स्वतः हट्छ; तपाईंले अहिले पनि हटाउन सक्नुहुन्छ।',
+  'Scheduled deletion:':'हटाउने मिति:','Delete my face data':'मेरो अनुहारको विवरण हटाउनुहोस्','Face data deleted.':'अनुहारको विवरण हटाइयो।',
+  'Needs acknowledgement · use phone/radio if this board is not being monitored':'स्वीकृति बाँकी · यो बोर्ड नहेरिएको भए फोन/रेडियो प्रयोग गर्नुहोस्',
+  'Acknowledge dispatch':'सूचना प्राप्त भएको पुष्टि गर्नुहोस्','Record completed phone/radio handoff':'फोन/रेडियोबाट जानकारी दिएको अभिलेख गर्नुहोस्',
+  'Phone/radio handoff recorded':'फोन/रेडियो हस्तान्तरण अभिलेख भयो',' · Phone/radio handoff recorded':' · फोन/रेडियो हस्तान्तरण अभिलेख भयो','Patient sharing changed. The open summary was cleared; verify identity and scope before requesting access again.':'बिरामीको साझेदारी परिवर्तन भयो। खुला सारांश हटाइयो; फेरि पहुँच माग्नुअघि पहिचान र स्वीकृत विवरण जाँच्नुहोस्।',
+  'Requests access to entries the patient already approved. It cannot expand scope or bypass revocation; verify two identifiers first.':'यसले बिरामीले पहिले नै स्वीकृत गरेका विवरणमा पहुँच माग्छ। यसले दायरा बढाउन वा रद्दीकरण छल्न सक्दैन; पहिले दुई परिचायक पुष्टि गर्नुहोस्।',
+  'Acknowledged by':'स्वीकृति दिने व्यक्ति',' at ':' समय ',
+  'Business-model simulation':'व्यापार मोडेलको नमुना',
+  'Scan a laboratory report':'प्रयोगशालाको प्रतिवेदन स्क्यान गर्नुहोस्','OCR draft · human review required':'OCR मस्यौदा · मानव समीक्षा आवश्यक',
+  'Scan or upload a report. English text is OCRed on this device; Nepali-script text needs manual transcription. Only explicit diagnosis/impression text can be suggested as a condition. Abnormal results are never converted into diagnoses. The original image and raw OCR text are kept as the source.':'प्रतिवेदन स्क्यान वा अपलोड गर्नुहोस्। यस उपकरणमा अंग्रेजी पाठको OCR हुन्छ; नेपाली लिपिको पाठ हातैले उतार्नुपर्छ। निदान/निष्कर्षमा स्पष्ट उल्लेख भएको अवस्थालाई मात्र सुझाव दिइन्छ। असामान्य नतिजालाई रोगको निदान बनाइँदैन। मूल तस्बिर र OCR पाठ स्रोतका रूपमा राखिन्छ।',
+  'Source laboratory':'स्रोत प्रयोगशाला','Lab / accession number (optional)':'प्रयोगशाला / नमुना नम्बर (वैकल्पिक)','As printed on the report':'प्रतिवेदनमा छापिएअनुसार',
+  'I matched two patient identifiers between the patient and this report.':'मैले बिरामी र प्रतिवेदनका दुई परिचायक रुजु गरेको छु।',
+  'Explicit condition mentions · draft':'रोग अवस्थाको स्पष्ट उल्लेख · मस्यौदा','These are text matches for clinician review; no condition is inferred from results.':'यी चिकित्सकले समीक्षा गर्नुपर्ने पाठ मिलान हुन्; नतिजाबाट कुनै रोग अवस्था अनुमान गरिएको छैन।',
+  'Report date':'प्रतिवेदन मिति','I verified every included transcription and category against the original report':'मैले समावेश गरिएको प्रत्येक पाठ र वर्ग मूल प्रतिवेदनसँग रुजु गरेको छु',
+  'Patient to review':'समीक्षा गर्ने बिरामी','You can switch only among patients assigned to this laboratory.':'यस प्रयोगशालालाई तोकिएका बिरामीमध्ये मात्र छान्न सकिन्छ।',
+  'Laboratory access':'प्रयोगशालाको पहुँच','No patients are assigned to this hospital account.':'यस अस्पताल खातामा कुनै बिरामी तोकिएको छैन।',
+  'The demo laboratory can review and update this patient.':'नमुना प्रयोगशालाले यो बिरामीको विवरण समीक्षा र अद्यावधिक गर्न सक्छ।','The demo laboratory cannot access this patient.':'नमुना प्रयोगशालाले यो बिरामीको विवरण हेर्न सक्दैन।',
+  'Remove lab access':'प्रयोगशालाको पहुँच हटाउनुहोस्','Assign to lab':'प्रयोगशालालाई तोक्नुहोस्','Loading the report OCR model ':'प्रतिवेदन OCR मोडेल लोड हुँदैछ ','Preparing report image…':'प्रतिवेदनको तस्बिर तयार हुँदैछ…','Reading report line ':'प्रतिवेदनको पङ्क्ति पढ्दैछ ',
   '$50 checkup · 15% Pran Rekha partner discount → $42.50 (simulated)':'जाँच $५० · प्रण रेखा साझेदारको १५% छुटपछि → $४२.५० (नमुना)',
   'Simulated appointment booked for $42.50. No payment was taken.':'$४२.५० को नमुना भेटघाट तय भयो। कुनै भुक्तानी लिइएन।',
   'Select each entry and its excerpt for emergency sharing.':'आपत्कालीन अवस्थामा साझा गर्न प्रत्येक विवरण र त्यसको अंश छान्नुहोस्।',
@@ -133,6 +156,12 @@ function translate(value: string): string {
   if (normalized) return normalized;
   let match = value.match(/^(\d+) days until review$/);
   if (match) return `${match[1]} दिनपछि पुनरावलोकन`;
+  match = value.match(/^Loading the report OCR model (\d+)% \(first time only, about 64 MB\)…$/);
+  if (match) return `प्रतिवेदन OCR मोडेल लोड हुँदैछ ${match[1]}% (पहिलो पटक मात्र, करिब ६४ MB)…`;
+  match = value.match(/^Reading report line (\d+) of (\d+) on this device…$/);
+  if (match) return `यस उपकरणमा प्रतिवेदनको पङ्क्ति ${match[1]} / ${match[2]} पढ्दैछ…`;
+  match = value.match(/^Acknowledged by (.+) at (.+)$/);
+  if (match) return `${match[1]} ले ${match[2]} मा स्वीकृत गर्नुभयो`;
   match = value.match(/^(\d+) line\(s\) recognized\. Correct each line and its category against the image\.$/);
   if (match) return `${match[1]} पङ्क्ति पहिचान भयो। तस्बिरसँग तुलना गरी प्रत्येक पङ्क्ति र वर्ग सच्याउनुहोस्।`;
   match = value.match(/^Downloading the handwriting model (\d+)% \(first time only, about 64 MB\)…$/);
@@ -171,8 +200,12 @@ function translateTree(node: ReactNode): ReactNode {
   for (const key of ['aria-label', 'alt', 'title', 'placeholder']) {
     if (typeof props[key] === 'string') next[key] = translate(props[key] as string);
   }
-  if (props.children !== undefined) next.children = translateTree(props.children as ReactNode);
-  return cloneElement(node, next);
+  const children=props.children===undefined?undefined:translateTree(props.children as ReactNode);
+  // Pass children as separate variadic arguments. Putting an array in props.children
+  // makes React treat static JSX siblings as a dynamic list and require keys for them.
+  if(Array.isArray(children))return cloneElement(node,next,...children);
+  if(children!==undefined)return cloneElement(node,next,children);
+  return cloneElement(node,next);
 }
 
 export function Localized({ children }: { children: ReactNode }) {

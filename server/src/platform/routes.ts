@@ -15,7 +15,7 @@ type Linkage = {id:string;actor:string;patient:string;expiresAt:string;rfid?:{de
 type Scan = {deviceId:string;tagUid:string;eventId:string;receivedAt:string};
 type ReaderDisplay = {grantId:string;expiresAt:string};
 type Face = {patientId:string;descriptor:number[];photo:string;photoSha256:string;createdBy:string;createdAt:string};
-type HandwrittenSource = {id:string;patientId:string;image:string;sha256:string;ocrText:string;engine:string;actorId:string;at:string};
+type HandwrittenSource = {id:string;patientId:string;image:string;sha256:string;ocrText:string;engine:string;actorId:string;at:string;sourceType:'handwritten_note'|'lab_report';reportSource?:string;reportNumber?:string};
 type Reader = {id:string;tokenHash:string;revoked:boolean;lastSeen:string|null};
 const text=z.string().min(1).max(500);
 const mutation=z.object({requestId:text,expectedRevision:z.number().int().nonnegative()});
@@ -26,8 +26,11 @@ const jpegBytes=(dataUrl:string)=>Buffer.from(dataUrl.slice(dataUrl.indexOf(',')
 export function platformRouter(store:PlatformStore,clock:()=>Date) {
   const router=Router();
   // Alert changes wake SSE subscribers; payloads stay out of the stream.
-  const listeners=new Set<()=>void>();
-  const notify=()=>{for(const listener of listeners)listener();};
+  const listeners=new Set<(event:'refresh'|'release-change')=>void>();
+  const notify=(event:'refresh'|'release-change'='refresh')=>{for(const listener of listeners)listener(event);};
+  const faceRetentionMs=30*86400000;
+  const purgeExpiredFaces=()=>{for(const face of store.all<Face>('face'))if(Date.parse(face.createdAt)<=clock().getTime()-faceRetentionMs){store.db.prepare('DELETE FROM platform_objects WHERE kind=? AND id=?').run('face',face.patientId);store.receipt(face.patientId,'system','Face enrollment expired after 30 days',[],clock());}};
+  purgeExpiredFaces();const faceCleanup=setInterval(purgeExpiredFaces,3600000);faceCleanup.unref?.();
   function profile(id:string):Profile { const p=store.get<Profile>('profile',id); if(!p) return unavailable(); return p; }
   function owner(actor:string,pid:string) {
     return Boolean(store.db.prepare('SELECT 1 FROM actor_patient_bindings WHERE actor_id=? AND patient_id=?').get(actor,pid));
@@ -46,7 +49,7 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       return {...entry,text:entry.text+' · '+view.state+' · actual use not established'};
     });
     const receiptId=store.receipt(pid,actor,purpose,entries.map(e=>e.id),clock());
-    return CardSchema.parse({...(p.demo?{demo:true}:{}),patientId:pid,name:p.name,entries,notice:(p.demo?'FICTIONAL DEMO DATA - not medical history. ':'')+NOTICE,generatedAt:clock().toISOString(),expiresAt,receiptId});
+    return CardSchema.parse({...(p.demo?{demo:true}:{}),patientId:pid,name:p.name,entries,notice:(p.demo?'FICTIONAL DEMO DATA - not medical history. ':'')+NOTICE+' Each item has its own recorded date and source. Verify that it is current and clinically relevant before use.',generatedAt:clock().toISOString(),expiresAt,receiptId});
   }
   function grant(id:string,actor:string,sessionHash:string) {
     const g=store.get<Grant>('grant',id);
@@ -138,11 +141,11 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
     try{
       const s=res.locals.staff as Staff, pid=String(req.params.id), input=SignRequestSchema.parse(req.body);
       if(s.role!=='clinician'||s.facility!=='lab-demo'||!allowedFull(s,pid))return unavailable();
-      res.json(store.mutate(s.id,input.requestId,{pid,...input},()=>{
+      const result=store.mutate(s.id,input.requestId,{pid,...input},()=>{
         const version=commitSigned(s,pid,input.expectedRevision,input.entries.map(e=>({...e,id:randomUUID(),author:s.id,reviewed:true})));
         store.put('ledger',version.id,{id:version.id,facility:s.facility,patientId:pid,amountMinor:5000,commissionMinor:400,currency:'USD',simulated:true,at:clock().toISOString()});
         return version;
-      }));
+      });notify();res.json(result);
     }catch(e){next(e);}
   });
   // Handwritten prescription/card: local OCR candidates confirmed line by line by the clinician, original image retained.
@@ -151,15 +154,18 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       const s=res.locals.staff as Staff,pid=String(req.params.id);
       if(!signingClinician(s,pid))return unavailable();
       const input=HandwrittenUpdateSchema.parse(req.body);
+      if(input.sourceType==='lab_report'&&input.patientIdentityVerified!==true)throw new Error('IDENTITY_CONFIRMATION_REQUIRED');
       if(jpegBytes(input.image).subarray(0,3).toString('hex')!=='ffd8ff')throw new Error('INVALID_INPUT');
       res.json(store.mutate(s.id,input.requestId,{pid,...input,image:digest(input.image)},()=>{
-        const source:HandwrittenSource={id:randomUUID(),patientId:pid,image:input.image,sha256:digest(input.image),ocrText:input.ocrText,engine:input.engine,actorId:s.id,at:clock().toISOString()};
-        const entries=input.entries.map(e=>EntrySchema.parse({id:randomUUID(),kind:e.kind,text:e.text,date:e.date,source:'Handwritten note · OCR candidate confirmed by clinician',excerpt:e.original.trim()||e.text,author:s.id,reviewed:true}));
+        const source:HandwrittenSource={id:randomUUID(),patientId:pid,image:input.image,sha256:digest(input.image),ocrText:input.ocrText,engine:input.engine,actorId:s.id,at:clock().toISOString(),sourceType:input.sourceType,...(input.reportSource?{reportSource:input.reportSource}:{}),...(input.reportNumber?{reportNumber:input.reportNumber}:{})};
+        const sourceKind=input.sourceType==='lab_report'?'lab-report-source':'handwritten-source';
+        const sourceLabel=input.sourceType==='lab_report'?`Laboratory report${input.reportSource?' · '+input.reportSource:''}${input.reportNumber?' · '+input.reportNumber:''} · OCR candidate checked by lab clinician`:'Handwritten note · OCR candidate confirmed by clinician';
+        const entries=input.entries.map(e=>EntrySchema.parse({id:randomUUID(),kind:e.kind,text:e.text,date:e.date,source:sourceLabel,excerpt:e.original.trim()||e.text,author:s.id,reviewed:true}));
         const version=commitSigned(s,pid,input.expectedRevision,entries);
-        store.put('handwritten-source',source.id,source);
-        for(const entry of entries)store.put('source-reference',entry.id,{handwrittenId:source.id,sha256:source.sha256,engine:source.engine,mode:'ocr_candidate_confirmed'});
-        store.receipt(pid,s.id,'Handwritten note signed',entries.map(e=>e.id),clock());
-        return {version,handwrittenId:source.id,entryIds:entries.map(e=>e.id)};
+        store.put(sourceKind,source.id,source);
+        for(const entry of entries)store.put('source-reference',entry.id,{sourceId:source.id,sourceType:input.sourceType,sha256:source.sha256,engine:source.engine,mode:'ocr_candidate_confirmed'});
+        store.receipt(pid,s.id,input.sourceType==='lab_report'?'Lab report reviewed and signed':'Handwritten note signed',entries.map(e=>e.id),clock());
+        return {version,sourceId:source.id,sourceType:input.sourceType,entryIds:entries.map(e=>e.id)};
       }));
     }catch(e){next(e);}
   });
@@ -170,33 +176,36 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       res.set({'Content-Type':'image/jpeg','Cache-Control':'no-store'}).send(jpegBytes(src.image));
     }catch(e){next(e);}
   });
+  router.get('/lab-reports/:id/image',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,src=store.get<HandwrittenSource>('lab-report-source',String(req.params.id));if(!src||!signingClinician(s,src.patientId))return unavailable();store.receipt(src.patientId,s.id,'Lab report image viewed',[],clock());res.set({'Content-Type':'image/jpeg','Cache-Control':'no-store'}).send(jpegBytes(src.image));}catch(e){next(e);}
+  });
   router.post('/profiles/:id/reports',(req,res,next)=>{
     try{
       const s=res.locals.staff as Staff,pid=String(req.params.id);
       const input=mutation.extend({text:z.string().min(1).max(2000),date:z.iso.date()}).strict().parse(req.body);
       if(!owner(s.id,pid))return unavailable();
-      res.json(store.mutate(s.id,input.requestId,{pid,...input},()=>{
+      const result=store.mutate(s.id,input.requestId,{pid,...input},()=>{
         const p=profile(pid);if(p.revision!==input.expectedRevision)throw new Error('CONFLICT');
         const entry=EntrySchema.parse({id:randomUUID(),kind:'report',text:input.text,date:input.date,source:'Patient attestation',excerpt:input.text,author:s.id,reviewed:false});
         p.entries.push(entry);p.revision++;store.put('profile',pid,p);return entry;
-      }));
+      });res.json(result);
     }catch(e){next(e);}
   });
   router.post('/profiles/:id/release',(req,res,next)=>{
     try {
       const s=res.locals.staff as Staff,pid=String(req.params.id),input=ReleaseRequestSchema.parse(req.body);if(!owner(s.id,pid))return unavailable();
-      res.json(store.mutate(s.id,input.requestId,{pid,...input},()=>{
+      const result=store.mutate(s.id,input.requestId,{pid,...input},()=>{
         const p=profile(pid);if(p.revision!==input.expectedRevision)throw new Error('CONFLICT');
         if(input.allowedEntryIds.some(id=>!p.entries.some(e=>e.id===id)))throw new Error('INVALID_INPUT');
         p.release={revision:p.release.revision+1,allowedEntryIds:[...new Set(input.allowedEntryIds)],revoked:false};p.revision++;
         store.put('profile',pid,p);return p.release;
-      }));
+      });notify('release-change');res.json(result);
     }catch(e){next(e);}
   });
   router.post('/profiles/:id/revoke',(req,res,next)=>{
     try{
       const s=res.locals.staff as Staff,pid=String(req.params.id),input=mutation.strict().parse(req.body);if(!owner(s.id,pid))return unavailable();
-      res.json(store.mutate(s.id,input.requestId,{pid,...input},()=>{const p=profile(pid);if(p.revision!==input.expectedRevision)throw new Error('CONFLICT');p.release.revoked=true;p.release.revision++;p.revision++;store.put('profile',pid,p);return {revoked:true};}));
+      const result=store.mutate(s.id,input.requestId,{pid,...input},()=>{const p=profile(pid);if(p.revision!==input.expectedRevision)throw new Error('CONFLICT');p.release.revoked=true;p.release.revision++;p.revision++;store.put('profile',pid,p);return {revoked:true};});notify('release-change');res.json(result);
     }catch(e){next(e);}
   });
   router.get('/profiles/:id/receipts',(req,res,next)=>{
@@ -252,18 +261,37 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       }));
     }catch(e){next(e);}
   });
+  router.get('/profiles/:id/lab-access',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,pid=String(req.params.id);if(!hospitalStaff(s)||!allowedFull(s,pid))return unavailable();res.json({assigned:store.all<{actor:string;patient:string}>('assignment').some(a=>a.actor==='portal-lab'&&a.patient===pid)});}catch(e){next(e);}
+  });
+  router.post('/profiles/:id/lab-access',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,pid=String(req.params.id),input=z.object({requestId:text,active:z.boolean()}).strict().parse(req.body);if(!hospitalStaff(s)||!allowedFull(s,pid))return unavailable();
+      const lab=store.staff('portal-lab');if(!lab||lab.role!=='clinician'||lab.facility!=='lab-demo')return unavailable();
+      const result=store.mutate(s.id,input.requestId,{pid,active:input.active},()=>{profile(pid);if(input.active){store.put('assignment','lab:'+pid,{actor:lab.id,patient:pid});}else{const rows=store.db.prepare('SELECT id,body FROM platform_objects WHERE kind=?').all('assignment') as {id:string;body:string}[];for(const row of rows){const assignment=JSON.parse(row.body) as {actor:string;patient:string};if(assignment.actor===lab.id&&assignment.patient===pid)store.db.prepare('DELETE FROM platform_objects WHERE kind=? AND id=?').run('assignment',row.id);}}store.receipt(pid,s.id,input.active?'Patient assigned to demo laboratory':'Patient removed from demo laboratory assignment',[],clock(),{labActor:lab.id});return {patientId:pid,assigned:input.active};});notify();res.json(result);
+    }catch(e){next(e);}
+  });
   router.get('/faces',(_req,res,next)=>{
     try{
       const s=res.locals.staff as Staff;if(!hospitalStaff(s))return unavailable();
-      res.json(store.all<Face>('face').map(f=>({patientId:f.patientId,name:store.get<Profile>('profile',f.patientId)?.name??f.patientId,descriptor:f.descriptor})));
+      purgeExpiredFaces();
+      res.setHeader('Cache-Control','no-store');res.json(store.all<Face>('face').filter(f=>allowedFull(s,f.patientId)).map(f=>({patientId:f.patientId,name:store.get<Profile>('profile',f.patientId)?.name??f.patientId,descriptor:f.descriptor})));
     }catch(e){next(e);}
   });
   router.get('/faces/:id/photo',(req,res,next)=>{
     try{
       const s=res.locals.staff as Staff;if(!hospitalStaff(s))return unavailable();
-      const face=store.get<Face>('face',String(req.params.id));if(!face)return unavailable();
+      purgeExpiredFaces();
+      const face=store.get<Face>('face',String(req.params.id));if(!face||!allowedFull(s,face.patientId))return unavailable();
       store.receipt(face.patientId,s.id,'Face photo viewed',[],clock());
       res.set({'Content-Type':'image/jpeg','Cache-Control':'no-store'}).send(jpegBytes(face.photo));
+    }catch(e){next(e);}
+  });
+  router.get('/profiles/:id/face',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,pid=String(req.params.id);if(!owner(s.id,pid))return unavailable();purgeExpiredFaces();const face=store.get<Face>('face',pid);res.setHeader('Cache-Control','no-store');res.json({enrolled:Boolean(face),expiresAt:face?new Date(Date.parse(face.createdAt)+faceRetentionMs).toISOString():null});}catch(e){next(e);}
+  });
+  router.delete('/profiles/:id/face',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,pid=String(req.params.id),input=z.object({requestId:text}).strict().parse(req.body);if(!owner(s.id,pid))return unavailable();
+      const result=store.mutate(s.id,input.requestId,{pid},()=>{const deleted=store.db.prepare('DELETE FROM platform_objects WHERE kind=? AND id=?').run('face',pid).changes>0;if(deleted)store.receipt(pid,s.id,'Face enrollment deleted by patient',[],clock());return {deleted};});res.json(result);
     }catch(e){next(e);}
   });
   router.post('/linkage',(req,res,next)=>{
@@ -295,7 +323,7 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       if(!['paramedic','clinician'].includes(s.role))return unavailable();
       res.json(store.mutate(s.id,input.requestId,input,()=>{
         const link=store.get<Linkage>('link',input.linkageId);if(!link||link.actor!==s.id||link.patient!==input.patientId||Date.parse(link.expiresAt)<=clock().getTime())return unavailable();
-        const p=profile(input.patientId);if(p.release.revoked)throw new Error('GRANT_REVOKED');
+        const p=profile(input.patientId);if(p.release.revoked)throw new Error('GRANT_REVOKED');if(!p.release.allowedEntryIds.length)throw new Error('NO_APPROVED_SCOPE');
         const g:Grant={id:randomUUID(),actor:s.id,patient:p.id,deviceId:input.deviceId,releaseRevision:p.release.revision,expiresAt:new Date(clock().getTime()+600000).toISOString(),purpose:input.purpose};
         store.put('grant',g.id,g);
         store.put('grant-session',g.id,{sessionHash:res.locals.tokenHash});
@@ -348,12 +376,22 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       }));notify();
     }catch(e){next(e);}
   });
+  router.post('/alerts/:id/acknowledge',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,input=z.object({requestId:text}).strict().parse(req.body),id=String(req.params.id);
+      const result=store.mutate(s.id,input.requestId,{id,...input},()=>{const a=store.get<Alert>('alert',id);if(!a||a.destination!==s.facility||s.role!=='clinician')return unavailable();if(!a.acknowledgedAt){a.acknowledgedAt=clock().toISOString();a.acknowledgedBy=s.id;a.revision++;store.put('alert',id,a);}return {id,acknowledgedAt:a.acknowledgedAt};});notify();res.json(result);
+    }catch(e){next(e);}
+  });
+  router.post('/alerts/:id/handoff',(req,res,next)=>{
+    try{const s=res.locals.staff as Staff,input=z.object({requestId:text}).strict().parse(req.body),id=String(req.params.id);
+      const result=store.mutate(s.id,input.requestId,{id,...input},()=>{const a=store.get<Alert>('alert',id);if(!a||a.destination!==s.facility||s.role!=='clinician')return unavailable();if(!a.handoffAt){a.handoffAt=clock().toISOString();a.handoffBy=s.id;a.revision++;store.put('alert',id,a);}return {id,handoffAt:a.handoffAt};});notify();res.json(result);
+    }catch(e){next(e);}
+  });
   router.get('/events',(req,res)=>{
     const s=res.locals.staff as Staff;
-    if(s.facility!=='hospital-demo'&&s.role!=='paramedic'){res.status(403).end();return;}
+    if(!['hospital-demo','lab-demo'].includes(s.facility)&&s.role!=='paramedic'){res.status(403).end();return;}
     res.setHeader('Content-Type','text/event-stream');res.setHeader('Connection','keep-alive');res.flushHeaders();
     // Notifications contain no patient data. Clients refetch via audited endpoints.
-    const push=()=>res.write('event: refresh\ndata: {}\n\n');
+    const push=(event:'refresh'|'release-change'='refresh')=>res.write(`event: ${event}\ndata: {}\n\n`);
     push();listeners.add(push);
     const heartbeat=setInterval(()=>res.write(': ping\n\n'),15000);
     // Bounded stream; EventSource reconnects and re-authenticates.
