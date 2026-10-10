@@ -7,6 +7,7 @@ import QRCode from 'qrcode';
 import type { Alert, Card, Entry, PlatformProfile } from '@pran-rekha/contracts/platform';
 import type { SessionResponse } from '@pran-rekha/contracts';
 import { api, labels, requestId, usePreferences } from './client';
+import { Localized } from './Localized';
 import { browserDeviceId, prepareBrowserShell, prepare, syncReceipts, unlock } from './offline';
 import { BreakGlass, RecordWorkflows } from './Workflows';
 import { FaceLookup } from './FaceLookup';
@@ -119,7 +120,7 @@ export default function Portal({portal}:{portal:PortalName}) {
 
   const warnings=(c:Card)=>c.entries.filter(e=>e.kind==='allergy').map(e=><p key={e.id} className="allergy-banner" role="alert"><TriangleAlert aria-hidden/> Recorded allergy: {e.text}. Review the attributed source; this is not a treatment instruction.</p>);
 
-  return <div className="platform">
+  return <Localized><div className="platform">
     <header className="portal-header"><Link href="/patient" className="logo"><img src="/brand/pranrekha-logo.png" alt="Pran Rekha" width={960} height={198}/></Link><span className="pill">{t.synthetic}</span>
       <div className="header-right"><button aria-pressed={theme==='dark'} aria-label={theme==='dark'?t.toLight:t.toDark} onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={16}/>:<Moon size={16}/>}{theme==='dark'?t.light:t.dark}</button><button onClick={()=>setLanguage(language==='en'?'ne':'en')}>{language==='en'?'नेपाली':'English'}</button>{session&&<button onClick={()=>void run(signOut)}><LogOut size={16}/>{t.signOut}</button>}</div>
     </header>
@@ -195,7 +196,7 @@ export default function Portal({portal}:{portal:PortalName}) {
         <div className="kanban">{statusColumns.map(status=><div className="column" key={status}><h3>{status.replace('_',' ')} ({alerts.filter(a=>a.status===status).length})</h3>
           {alerts.filter(a=>a.status===status).map(a=><article className={'entry alert'+(fresh.includes(a.id)?' pulse':'')} key={a.id}>
             <h2>{a.card.name}</h2>
-            <p className="eta">{a.unit} · ETA {a.etaMinutes} min · {new Date(a.timestamp).toLocaleTimeString()}</p>
+            <p className="eta">{a.unit} · ETA {a.etaMinutes} min · {new Date(a.timestamp).toLocaleTimeString(language==='ne'?'ne-NP':'en-GB')}</p>
             {a.card.entries.filter(e=>e.kind==='blood_group').map(e=><p key={e.id} className="blood">Recorded blood group {e.text} · verify per transfusion protocol</p>)}
             {warnings(a.card)}
             <details><summary>Approved summary ({a.card.entries.length} entries)</summary><p>{a.card.notice}</p>{renderEntries(a.card.entries)}</details>
@@ -221,5 +222,5 @@ export default function Portal({portal}:{portal:PortalName}) {
       <footer>Nepali copy pending native-speaker review · BS conversion unavailable pending verified reference pairs</footer>
     </main>
     <Dialog.Root open={!!source} onOpenChange={open=>!open&&setSource(null)}><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="dialog-content"><Dialog.Title>{t.source}</Dialog.Title><Dialog.Description>{source?.source} · {source?.date}</Dialog.Description><blockquote>{source?.excerpt}</blockquote><p>{source?.reviewed?'Clinician-authored demo evidence':'Attributed patient report'}</p><Dialog.Close>Close</Dialog.Close></Dialog.Content></Dialog.Portal></Dialog.Root>
-  </div>;
+  </div></Localized>;
 }

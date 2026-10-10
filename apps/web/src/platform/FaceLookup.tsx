@@ -5,6 +5,7 @@ import type { FaceGalleryEntry } from '@pran-rekha/contracts/platform';
 import { api } from './client';
 import { describe, FaceInputError, loadModels, match, MAX_ENROLLED, type Enrolled, type FaceResult } from './face';
 import { PhotoCapture, type PhotoSource } from './PhotoCapture';
+import { Localized } from './Localized';
 
 const demoPatient={id:'PR-9042-8819',name:'Siddharth Raj Sharma'};
 type Mode='identify'|'enroll';
@@ -55,7 +56,7 @@ export function FaceLookup({patients=[]}:{patients?:{id:string;name:string}[]}){
   const enrollBlocked=mode==='enroll'&&(!label.trim()||gallery.length>=MAX_ENROLLED);
   const disabled=!consent||modelState!=='ready'||enrollBlocked;
 
-  return <section className="surface wide face-lookup">
+  return <Localized><section className="surface wide face-lookup">
     <div className="board-heading"><h2><ScanFace/> Possible patient lookup</h2>
       <span className={'pill'+(modelState==='unavailable'?' unavailable':'')}>{modelState==='unavailable'?'UNAVAILABLE':'LIVE local matcher'}</span></div>
     <p>Suggests a candidate from an uploaded photo or camera frame. Matching runs in this browser against faces saved at registration and any session-only enrollments. A candidate grants no record access.</p>
@@ -92,5 +93,5 @@ export function FaceLookup({patients=[]}:{patients?:{id:string;name:string}[]}){
 
     {gallery.length>0&&<><h3>Session gallery</h3><ul className="receipts">{gallery.map(g=><li key={g.handle}>{g.label} · {g.patientId} <button aria-label={'Remove '+g.label} onClick={()=>setGallery(gallery.filter(x=>x.handle!==g.handle))}><Trash2 size={14}/></button></li>)}</ul>
       <button onClick={()=>setGallery([])}>Clear session gallery</button></>}
-  </section>;
+  </section></Localized>;
 }

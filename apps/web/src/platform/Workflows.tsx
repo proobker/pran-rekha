@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import type { MedicationRecord, PrescriptionView } from '@pran-rekha/contracts';
 import { api, requestId } from './client';
+import { Localized } from './Localized';
 type Doc={id:string;title:string;pages:string[];status:string};
 type Med={record:MedicationRecord;view:PrescriptionView;events:{id:string;kind:string;effectiveDate:string;source:string}[];useReports:{id:string;statement:string;actorId:string;reportedAt:string;lastDose:string|null}[]};
 export function RecordWorkflows({patientId,revision,onChange,clinician=false}:{patientId:string;revision:number;onChange:()=>Promise<void>;clinician?:boolean}){
@@ -13,7 +14,7 @@ export function RecordWorkflows({patientId,revision,onChange,clinician=false}:{p
   useEffect(()=>{void refresh().catch(e=>setError(String(e)));},[patientId,revision,clinician]);
   async function run(action:()=>Promise<void>){setBusy(true);setError('');try{await action();await refresh();await onChange();}catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
   const doc=docs.find(d=>d.id===documentId);
-  return <section className="surface wide">
+  return <Localized><section className="surface wide">
     <h2>Documents and medication history</h2>{error&&<p role="alert" className="error">{error}</p>}
     {!clinician&&<>
       <label>Import JPEG, PNG or text PDF (10 MiB maximum)<input type="file" accept="image/jpeg,image/png,application/pdf" disabled={busy} onChange={e=>{
@@ -46,14 +47,14 @@ export function RecordWorkflows({patientId,revision,onChange,clinician=false}:{p
       {clinician?<button disabled={busy||!evidence} onClick={()=>void run(async()=>{await api('platform/medications/'+m.record.id+'/events',{requestId:requestId(),expectedRevision:m.view.sourceRevision,kind:eventKind,effectiveDate:effective,source:evidence,...(eventKind==='status_confirmed'?{status:'documented_active'}:{}),...(['corrected','retracted'].includes(eventKind)?{targetEventId:target}:{}),...(eventKind==='corrected'?{replacementEventId:replacement}:{}),...(['substituted','dose_changed'].includes(eventKind)?{replacementRecordId:replacement}:{})});})}>Append event</button>
       :<button disabled={busy||!evidence} onClick={()=>void run(async()=>{await api('platform/medications/'+m.record.id+'/use-reports',{requestId:requestId(),use:'uncertain',lastDose:null,statement:evidence});})}>Add attributed use report</button>}
     </article>)}</div>
-  </section>;
+  </section></Localized>;
 }
 export function BreakGlass({hospital=false,link,purpose}:{hospital?:boolean;link?:{patientId:string;linkageId:string}|null;purpose?:string}){
   const [requests,setRequests]=useState<{id:string;purpose:string;status:string}[]>([]),[id,setId]=useState(''),[message,setMessage]=useState('');
   async function run(action:()=>Promise<unknown>){try{setMessage(JSON.stringify(await action()));}catch(e){setMessage(String(e));}}
-  return <section className="surface"><h2>Connected break-glass review</h2><p>Requires a distinct clinician approval. Explicitly revoked scopes remain unavailable.</p>
+  return <Localized><section className="surface"><h2>Connected break-glass review</h2><p>Requires a distinct clinician approval. Explicitly revoked scopes remain unavailable.</p>
     {hospital?<><button onClick={()=>void run(async()=>{const rows=await api<typeof requests>('platform/break-glass');setRequests(rows);return {pending:rows.length};})}>Load approval queue</button>{requests.map(r=><p key={r.id}>{r.purpose}<button onClick={()=>void run(()=>api('platform/break-glass/'+r.id+'/approve',{requestId:requestId()}))}>Approve five-minute access</button></p>)}</>
     :<><button disabled={!link} onClick={()=>void run(async()=>{const result=await api<{id:string}>('platform/break-glass',{requestId:requestId(),...link,purpose:purpose??'Emergency review request',deviceId:'staff-browser',confirmed:true});setId(result.id);return result;})}>Request independent approval</button>{id&&<button onClick={()=>void run(()=>api('platform/break-glass/'+id))}>Check approval</button>}</>}
     <p role="status">{message}</p>
-  </section>;
+  </section></Localized>;
 }

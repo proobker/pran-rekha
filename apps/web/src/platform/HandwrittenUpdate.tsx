@@ -5,6 +5,7 @@ import type { Entry, HandwrittenUpdateRequest, PlatformProfile } from '@pran-rek
 import { api, requestId } from './client';
 import { LOW_CONFIDENCE, toCandidates, type Candidate } from './categorize';
 import { correctLine } from './medical-lexicon';
+import { Localized } from './Localized';
 import { recognize, TROCR_ENGINE, type OcrProgress } from './ocr';
 import { PhotoCapture, type PhotoSource } from './PhotoCapture';
 
@@ -61,7 +62,7 @@ export function HandwrittenUpdate({patients,onChange}:{patients:{id:string;name:
     finally{setBusy(false);}
   }
 
-  return <section className="surface wide handwritten">
+  return <Localized><section className="surface wide handwritten">
     <div className="board-heading"><h2><NotebookPen/> Handwritten prescription or medical card</h2><span className="pill">OCR candidate · verify against image</span></div>
     <p>Photograph or upload a handwritten note. Text is recognized on this device and sorted into categories; you correct every line before signing. The original image and raw OCR text are kept as the source.</p>
     {!patients.length?<p>No patients you can update yet. Hospital clinicians can update patients they registered.</p>:<>
@@ -92,5 +93,5 @@ export function HandwrittenUpdate({patients,onChange}:{patients:{id:string;name:
         </div>
       </div>}
     </>}
-  </section>;
+  </section></Localized>;
 }
