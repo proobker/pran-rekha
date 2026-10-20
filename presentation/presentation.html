@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PranRekha (प्राणरेखा) — Pitch Presentation Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    /* ---------------------------------------------------------------
+       PranRekha deck — editorial styles
+       Helvetica throughout; Plex Mono only for small data labels.
+       Solid fills and hairlines only; one accent, one warning colour.
+    --------------------------------------------------------------- */
+    :root {
+      --paper: #12110e;
+      --sheet: #1a1915;
+      --ink: #ede8dd;
+      --ink-2: #c4beb1;
+      --ink-3: #8a8478;
+      --rule: rgba(237, 232, 221, 0.16);
+      --rule-strong: rgba(237, 232, 221, 0.4);
+      --accent: #5bb5a6;
+      --danger: #d65a3f;
+
+      --sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+      /* Base size, set for reading across a room. Every text size is a fixed
+         multiple of --fs, so proportions hold on every slide and screen. */
+      --fs-raw: min(1.6vw, 3.1vh);
+      --fs: clamp(15px, var(--fs-raw), 32px);
+
+      --gutter-l: 56px;
+      --gutter-r: 40px;
+      --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    /* The scale is re-derived wherever --fs is changed locally */
+    :root, .masthead, .slide-view, #stage-container {
+      --t-label: calc(var(--fs) * 0.6);     /* mono labels */
+      --t-small: calc(var(--fs) * 0.8);     /* captions, nav */
+      --t-body: var(--fs);                  /* points */
+      --t-fact: calc(var(--fs) * 1.45);     /* key figures */
+      --t-index: calc(var(--fs) * 1.9);     /* slide number */
+      --t-statement: calc(var(--fs) * 2.1);
+      --t-head: calc(var(--fs) * 2.6);
+    }
+    /* Chrome stays quieter than the slide content */
+    .masthead, #stage-container { --fs: clamp(14px, min(1.05vw, 2.1vh), 21px); }
+    /* Slide 3 carries the most text; it steps down slightly to fit */
+    #slide-2 { --fs: clamp(14px, calc(var(--fs-raw) * 0.86), 27px); }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      background: var(--paper); color: var(--ink);
+      font-family: var(--sans); font-size: 16px;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+
+    ::selection { background: var(--accent); color: var(--paper); }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    :focus { outline: none; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    #deck-wrapper {
+      height: 100%;
+      display: grid; grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    /* ---------- Masthead ---------- */
+    .masthead {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: end; column-gap: calc(var(--fs) * 2);
+      padding: calc(var(--fs) * 0.85) var(--gutter-r) 0 var(--gutter-l);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .wordmark {
+      display: flex; align-items: baseline; gap: 12px;
+      padding-bottom: calc(var(--fs) * 0.55); white-space: nowrap;
+    }
+    .wm-name {
+      font-family: var(--sans); font-size: calc(var(--fs) * 1.05); font-weight: 700;
+      letter-spacing: -0.03em; line-height: 1;
+    }
+    .wm-deva { font-size: var(--t-small); color: var(--ink-3); }
+    /* Table-of-contents strip; doubles as slide navigation */
+    .slide-dots {
+      display: flex; align-items: flex-end; gap: 0;
+      list-style: none; align-self: stretch;
+    }
+    .s-dot {
+      display: flex; align-items: baseline; gap: 7px;
+      padding: 0 calc(var(--fs) * 0.7) calc(var(--fs) * 0.55); height: 100%;
+      font-size: var(--t-small); color: var(--ink-3);
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: color 120ms ease, border-color 120ms ease;
+    }
+    .s-dot .n { font-family: var(--mono); font-size: var(--t-label); }
+    .s-dot:hover { color: var(--ink); }
+    .s-dot.active { color: var(--ink); border-bottom-color: var(--accent); }
+    .s-dot:first-child { padding-left: 0; }
+
+    .text-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 0 0 calc(var(--fs) * 0.55); font-size: var(--t-small); color: var(--ink-2);
+      transition: color 120ms ease;
+    }
+    .text-btn:hover { color: var(--ink); }
+    .text-btn:hover span:first-child { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+    .text-btn.active { color: var(--accent); }
+
+    /* ---------- Stage: unequal columns ---------- */
+    #main-stage {
+      display: grid; grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+      min-height: 0;
+    }
+
+    #slides-host {
+      display: grid; align-items: center;
+      padding: clamp(20px, 4vh, 56px) clamp(24px, 3vw, 64px) clamp(20px, 4vh, 56px) var(--gutter-l);
+      min-height: 0; overflow: hidden;
+    }
+
+    .slide-view {
+      grid-area: 1 / 1;
+      width: 100%; max-width: 920px;
+      opacity: 0; visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 320ms var(--ease), transform 320ms var(--ease), visibility 0s linear 320ms;
+    }
+    .slide-view.active {
+      opacity: 1; visibility: visible; transform: none;
+      transition: opacity 320ms var(--ease) 60ms, transform 320ms var(--ease) 60ms, visibility 0s;
+    }
+
+    /* Spacing is in multiples of the base size too */
+    .kicker {
+      display: flex; align-items: baseline; gap: calc(var(--fs) * 0.7);
+      margin-bottom: calc(var(--fs) * 0.9);
+      font-family: var(--mono); font-size: var(--t-small); letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--ink-3);
+    }
+    .kicker .k-num {
+      font-family: var(--sans); font-size: var(--t-index); font-weight: 700;
+      letter-spacing: -0.04em; line-height: 1; color: var(--accent);
+    }
+    .kicker.is-danger .k-num { color: var(--danger); }
+
+    .headline {
+      font-family: var(--sans); font-weight: 700;
+      font-size: var(--t-head);
+      line-height: 1.02; letter-spacing: -0.035em;
+    }
+    .headline em {
+      display: block; font-style: normal; font-weight: 400; color: var(--accent);
+    }
+    .headline--statement {
+      font-weight: 400;
+      font-size: var(--t-statement);
+      line-height: 1.14; letter-spacing: -0.028em;
+      color: var(--ink-2);
+    }
+    .headline--statement strong {
+      font-weight: 700; color: var(--danger);
+    }
+
+    .points {
+      list-style: none; counter-reset: pt;
+      display: flex; flex-direction: column; gap: calc(var(--fs) * 0.95);
+      margin-top: calc(var(--fs) * 1.7);
+    }
+    .points li {
+      counter-increment: pt;
+      display: grid; grid-template-columns: calc(var(--fs) * 2.4) minmax(0, 1fr);
+      font-size: var(--t-body); line-height: 1.4; color: var(--ink);
+    }
+    .points li::before {
+      content: counter(pt, decimal-leading-zero);
+      font-family: var(--mono); font-size: var(--t-label); color: var(--accent);
+      padding-top: 0.55em;
+    }
+    .points .term { display: block; font-weight: 700; }
+    .points .desc { color: var(--ink-2); }
+
+    .facts {
+      display: grid; grid-template-columns: repeat(3, auto); justify-content: start; align-items: end;
+      column-gap: clamp(18px, calc(var(--fs) * 2.6), 64px);
+      margin-top: calc(var(--fs) * 1.9);
+    }
+    .facts dt {
+      font-family: var(--mono); font-size: var(--t-label); letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--ink-3);
+    }
+    .facts dd {
+      font-family: var(--sans); font-size: var(--t-fact); font-weight: 700;
+      letter-spacing: -0.03em; line-height: 1.1; margin-top: calc(var(--fs) * 0.2); white-space: nowrap;
+    }
+
+    /* ---------- Figure column (3D + video) ---------- */
+    #stage-container {
+      position: relative; min-height: 0; overflow: hidden;
+      cursor: grab; user-select: none; -webkit-user-select: none;
+    }
+    #stage-container:active { cursor: grabbing; }
+    #three-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+    #sim-telemetry-hud {
+      position: absolute; left: 28px; right: var(--gutter-r); bottom: 22px; z-index: 25;
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 24px;
+      padding-top: 10px;
+      pointer-events: none;
+    }
+    .sim-hud-left { display: flex; align-items: baseline; gap: 12px; }
+    .sim-hud-icon { display: none; }
+    .sim-hud-title { font-family: var(--sans); font-size: var(--t-small); font-weight: 500; letter-spacing: -0.01em; color: var(--ink); }
+    .sim-hud-metric {
+      font-family: var(--mono); font-size: var(--t-label); font-weight: 500;
+      letter-spacing: 0.06em; color: var(--ink);
+    }
+
+    /* Video figure (slide 3) */
+    #video-viewport-wrapper {
+      position: absolute; inset: 0; z-index: 22;
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px var(--gutter-r) 88px 28px;
+      background: var(--paper);
+      opacity: 0; visibility: hidden;
+      transition: opacity 280ms var(--ease), visibility 0s linear 280ms;
+    }
+    #video-viewport-wrapper.active {
+      opacity: 1; visibility: visible;
+      transition: opacity 280ms var(--ease) 60ms, visibility 0s;
+    }
+    .video-card {
+      /* full column width, but never taller than the space under the header */
+      width: min(100%, calc((100vh - 280px) * 16 / 9));
+      display: flex; flex-direction: column;
+      background: var(--sheet); border: 1px solid var(--rule-strong);
+    }
+    .video-media-wrap { position: relative; aspect-ratio: 16 / 9; background: #000; }
+    .video-media-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    .video-controls {
+      display: flex; gap: 0; border-top: 1px solid var(--rule);
+    }
+    .ctl {
+      padding: calc(var(--fs) * 0.45) calc(var(--fs) * 0.7); font-family: var(--mono); font-size: var(--t-label);
+      letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2);
+      border-right: 1px solid var(--rule);
+      transition: background-color 120ms ease, color 120ms ease;
+    }
+    .ctl:last-child { margin-left: auto; border-right: 0; border-left: 1px solid var(--rule); }
+    .ctl:hover { background: var(--ink); color: var(--paper); }
+    .ctl:active { transform: translateY(1px); }
+
+    /* Portrait phone recording (slide 4): height-led, width follows the 886x1920 frame */
+    .video-media-wrap[hidden] { display: none; }
+    .video-card.is-portrait { width: auto; }
+    .video-media-wrap.is-portrait { aspect-ratio: 886 / 1920; height: calc(100vh - 300px); }
+    #video-viewport-wrapper.cinema-mode .video-media-wrap.is-portrait { height: auto; }
+
+    /* Cinema mode: the video figure takes the whole screen */
+    #video-viewport-wrapper.cinema-mode {
+      position: fixed; inset: 0; z-index: 1000;
+      padding: 0; background: #000;
+    }
+    #video-viewport-wrapper.cinema-mode .video-card {
+      max-width: none; width: 100%; height: 100%;
+      border: 0; background: #000;
+    }
+    #video-viewport-wrapper.cinema-mode .video-media-wrap { flex: 1; aspect-ratio: auto; min-height: 0; }
+    #video-viewport-wrapper.cinema-mode .video-controls { background: var(--paper); }
+
+    @media (max-width: 1100px) {
+      .s-dot .t { display: none; }
+    }
+    @media (max-width: 820px) {
+      :root { --gutter-l: 20px; --gutter-r: 20px; }
+      .wm-deva { display: none; }
+      #main-stage { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+      #stage-container { border-top: 1px solid var(--rule); }
+      #slides-host { padding: 24px var(--gutter-r) 24px var(--gutter-l); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0ms !important; transition-delay: 0ms !important; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="deck-wrapper">
+
+    <header class="masthead">
+      <div class="wordmark">
+        <span class="wm-name">PranRekha</span>
+        <span class="wm-deva">प्राणरेखा</span>
+      </div>
+
+      <nav class="slide-dots" aria-label="Slides">
+        <button class="s-dot active" onclick="goToSlide(0)" title="Slide 1: The Problem"><span class="n">01</span><span class="t">Problem</span></button>
+        <button class="s-dot" onclick="goToSlide(1)" title="Slide 2: Offline Medical Card"><span class="n">02</span><span class="t">Card</span></button>
+        <button class="s-dot" onclick="goToSlide(2)" title="Slide 3: System Visualization"><span class="n">03</span><span class="t">Walkthrough</span></button>
+        <button class="s-dot" onclick="goToSlide(3)" title="Slide 4: Patient App Demo"><span class="n">04</span><span class="t">Demo</span></button>
+        <button class="s-dot" onclick="goToSlide(4)" title="Slide 5: Routine Checkups"><span class="n">05</span><span class="t">Checkups</span></button>
+        <button class="s-dot" onclick="goToSlide(5)" title="Slide 6: Connected System"><span class="n">06</span><span class="t">Network</span></button>
+        <button class="s-dot" onclick="goToSlide(6)" title="Slide 7: Revenue Model"><span class="n">07</span><span class="t">Revenue</span></button>
+        <button class="s-dot" onclick="goToSlide(7)" title="Slide 8: Lab Enrollment Demo"><span class="n">08</span><span class="t">Enroll</span></button>
+        <button class="s-dot" onclick="goToSlide(8)" title="Slide 9: Full Product Demo"><span class="n">09</span><span class="t">Full demo</span></button>
+      </nav>
+
+      <button id="btn-fullscreen" class="text-btn" onclick="toggleFullscreen()" title="Full screen (F)">
+        <span id="fs-text">Full screen</span>
+      </button>
+    </header>
+
+    <main id="main-stage">
+
+      <section id="slides-host">
+
+        <!-- 01 · The Problem -->
+        <article class="slide-view active" id="slide-0">
+          <p class="kicker is-danger"><span class="k-num">01</span>The problem</p>
+          <h1 class="headline headline--statement">
+            In severe medical emergencies, <strong>doctors lose 45 critical minutes</strong> of the Golden Hour verifying blood type and fatal allergies before they can safely treat.
+          </h1>
+        </article>
+
+        <!-- 02 · Offline Medical Card -->
+        <article class="slide-view" id="slide-1">
+          <p class="kicker"><span class="k-num">02</span>Offline medical card</p>
+          <h1 class="headline">Safe &amp; Verified <em>Offline Medical Card</em></h1>
+          <ol class="points">
+            <li>Only certified labs can enter blood type and allergies</li>
+            <li>Patients cannot edit or fake their own records</li>
+            <li>Works 100% offline with zero internet needed</li>
+          </ol>
+        </article>
+
+        <!-- 03 · System Visualization -->
+        <article class="slide-view" id="slide-2">
+          <p class="kicker"><span class="k-num">03</span>System visualization</p>
+          <h1 class="headline">Zero Delay Triage: <em>Live System Visualization</em></h1>
+          <ol class="points">
+            <li><span><span class="term">Instant Paramedic Scan</span><span class="desc">Break Glass override triggered directly from physical card or camera</span></span></li>
+            <li><span><span class="term">Pre Arrival Stream</span><span class="desc">Verified baseline data and live ETA stream to hospital ER before transit completes</span></span></li>
+            <li><span><span class="term">Autonomous Directives</span><span class="desc">ER prepares exact blood units and blocks contraindicated drugs before arrival</span></span></li>
+          </ol>
+          <dl class="facts">
+            <div><dt>Triage latency</dt><dd>Zero delay</dd></div>
+            <div><dt>Verified baseline</dt><dd>100%</dd></div>
+            <div><dt>Bay preparation</dt><dd>Pre-arrival</dd></div>
+          </dl>
+        </article>
+
+        <!-- 04 · Live demo: patient app -->
+        <article class="slide-view" id="slide-3">
+          <p class="kicker"><span class="k-num">04</span>Live demo</p>
+          <h1 class="headline">The Patient App, <em>Live on a Phone</em></h1>
+          <ol class="points">
+            <li>Emergency pass with blood group and a QR that carries no medical data</li>
+            <li>Every record shows its source: lab-signed or patient-reported</li>
+            <li>Patients choose exactly what responders can see</li>
+            <li>Encrypted copy stays readable with no signal</li>
+          </ol>
+        </article>
+
+        <!-- 05 · Sustainability -->
+        <article class="slide-view" id="slide-4">
+          <p class="kicker"><span class="k-num">05</span>Sustainability</p>
+          <h1 class="headline">6 Month <em>Routine Checkups</em></h1>
+          <ol class="points">
+            <li>Records expire every 6 months to encourage routine checkups</li>
+            <li>Patients get automatic reminders to visit local clinics</li>
+            <li>Routine visits keep emergency records fresh and accurate</li>
+            <li>Keeps people healthy before emergencies happen</li>
+          </ol>
+        </article>
+
+        <!-- 06 · Connected System -->
+        <article class="slide-view" id="slide-5">
+          <p class="kicker"><span class="k-num">06</span>Connected system</p>
+          <h1 class="headline">Connected Network, <em>Instant Emergency Care</em></h1>
+          <ol class="points">
+            <li>Lab verified records protect doctors so they can treat immediately</li>
+            <li>Patient card, ambulance, and hospital connect instantly</li>
+            <li>Works in any web browser with no new equipment needed</li>
+          </ol>
+        </article>
+
+        <!-- 07 · Revenue Model -->
+        <article class="slide-view" id="slide-6">
+          <p class="kicker"><span class="k-num">07</span>Revenue model</p>
+          <h1 class="headline">Sustainable <em>Revenue Model</em></h1>
+          <ol class="points">
+            <li>8% booking fee on routine clinic checkups</li>
+            <li>Rs. 4,00,000 to 6,00,000 for complete setup</li>
+            <li>Rs. 15,000 monthly software fee for hospital ERs</li>
+            <li>Corporate health plans for company employees</li>
+            <li>100% free for all citizens in emergencies</li>
+          </ol>
+        </article>
+
+        <!-- 08 · Live demo: lab RFID enrollment -->
+        <article class="slide-view" id="slide-7">
+          <p class="kicker"><span class="k-num">08</span>Live demo</p>
+          <h1 class="headline">Lab Enrollment, <em>One Tap per Card</em></h1>
+          <ol class="points">
+            <li>Certified labs link each patient to a physical RFID card</li>
+            <li>The card stores only an ID, never medical data</li>
+            <li>The scanner shows the patient's name; the lab approves the match</li>
+            <li>A whole batch of patients can be enrolled in one session</li>
+          </ol>
+        </article>
+
+        <!-- 09 · Full product demo -->
+        <article class="slide-view" id="slide-8">
+          <p class="kicker"><span class="k-num">09</span>Full demo</p>
+          <h1 class="headline">One Patient, <em>Every Portal</em></h1>
+          <ol class="points">
+            <li>Hospital registers the patient with a consented face photo</li>
+            <li>Lab scans a printed report; OCR runs on the device</li>
+            <li>Patient approves exactly what can be shared</li>
+            <li>RFID tap, pre-arrival alert and face lookup at the ER</li>
+          </ol>
+        </article>
+
+      </section>
+
+      <figure id="stage-container">
+        <canvas id="three-canvas"></canvas>
+
+        <div id="video-viewport-wrapper">
+          <div class="video-card">
+            <div class="video-media-wrap" data-slide="2">
+              <video id="presentation-video" src="media/visualization.mp4" playsinline loop preload="auto"></video>
+            </div>
+            <div class="video-media-wrap is-portrait" data-slide="3" hidden>
+              <video id="demo-video" src="media/patient-app-phone.mp4" playsinline preload="auto"></video>
+            </div>
+            <div class="video-media-wrap" data-slide="7" hidden>
+              <video id="enroll-video" src="media/rfid-enrollment.mp4" playsinline preload="auto"></video>
+            </div>
+            <div class="video-media-wrap" data-slide="8" hidden>
+              <video id="full-demo-video" src="media/full-demo.mp4" playsinline preload="auto"></video>
+            </div>
+            <div class="video-controls">
+              <button class="ctl" id="v-play-btn" onclick="toggleVideoPlayback()">Pause</button>
+              <button class="ctl" id="v-mute-btn" onclick="toggleVideoSound()">Unmute</button>
+              <button class="ctl" onclick="restartVideo()">Replay</button>
+              <button class="ctl" id="v-ctrl-fs-btn" onclick="toggleVideoFullscreen()">Full screen</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="sim-telemetry-hud">
+          <div class="sim-hud-left">
+            <div class="sim-hud-icon" id="sim-hud-icon"></div>
+            <div class="sim-hud-title" id="sim-hud-title">The Golden Hour Bottleneck</div>
+          </div>
+          <div class="sim-hud-metric" id="sim-hud-metric">45 MIN LOST</div>
+        </div>
+      </figure>
+
+    </main>
+
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    // DYNAMIC 3D SIMULATION ENGINE: CHANGES PER SLIDE TOPIC
+    // ═══════════════════════════════════════════════════════════════
+    let scene, camera, renderer, controls;
+    let mainGroup;
+
+    // Slide Simulation Subgroups
+    let simGroups = [];
+    let curSlide = 0;
+    const totalSlides = 9;
+    // Which 3D scene each slide shows; null = a video slide (scene hidden)
+    const simForSlide = [0, 1, null, null, 2, 3, 4, null, null];
+    // Video slides: slide index -> <video> id
+    const videoForSlide = { 2: 'presentation-video', 3: 'demo-video', 7: 'enroll-video', 8: 'full-demo-video' };
+    // Recorded demos are narrated live, so they start from the top each time
+    const restartOnEnter = new Set([3, 7, 8]);
+    // Fit the enrollment recording's frame to its real shape (phone or screen capture)
+    document.getElementById('enroll-video').addEventListener('loadedmetadata', e => {
+      const v = e.target, wrap = v.closest('.video-media-wrap');
+      wrap.style.aspectRatio = v.videoWidth + ' / ' + v.videoHeight;
+      wrap.classList.toggle('is-portrait', v.videoHeight > v.videoWidth);
+      if (curSlide === 7) document.querySelector('.video-card').classList.toggle('is-portrait', v.videoHeight > v.videoWidth);
+    });
+    function activeVideo() {
+      return document.getElementById(videoForSlide[curSlide] || 'presentation-video');
+    }
+
+    // Simulation metadata updating HUD for each slide
+    const slideSimMetadata = [
+      {
+        badge: "Fig. 01 — The golden hour",
+        badgeColor: "rgba(224, 106, 98, 0.45)",
+        icon: "⚠️",
+        title: "The Golden Hour Bottleneck",
+        metric: "45 MIN LOST"
+      },
+      {
+        badge: "Fig. 02 — Lab-signed card",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "🛡️",
+        title: "Lab-Verified Medical Card",
+        metric: "100% OFFLINE"
+      },
+      {
+        badge: "Fig. 03 — System walkthrough",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "🎥",
+        title: "Field & ER Pre-Arrival Stream",
+        metric: "LIVE STREAM"
+      },
+      {
+        badge: "Fig. 04 — Patient app demo",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "📱",
+        title: "Patient App Walkthrough",
+        metric: "LIVE DEMO"
+      },
+      {
+        badge: "Fig. 05 — Six-month cycle",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "🌱",
+        title: "6-Month Health Checkups",
+        metric: "6 MONTHS"
+      },
+      {
+        badge: "Fig. 06 — The hand-off",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "🔗",
+        title: "Instant Coordination",
+        metric: "ZERO DELAY"
+      },
+      {
+        badge: "Fig. 07 — Who pays",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "💰",
+        title: "Sustainable Business Model",
+        metric: "PROFITABLE"
+      },
+      {
+        badge: "Fig. 08 — Lab enrollment demo",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "🏷️",
+        title: "RFID Card Enrollment",
+        metric: "LIVE DEMO"
+      },
+      {
+        badge: "Fig. 09 — Full product demo",
+        badgeColor: "rgba(255, 255, 255, 0.08)",
+        icon: "🎬",
+        title: "End-to-End Walkthrough",
+        metric: "1:58 DEMO"
+      }
+    ];
+
+    // Palette shared with the CSS tokens
+    const PAL = {
+      accent: 0x5bb5a6, light: 0xebe6db, stone: 0xd6d0c4, mid: 0x8a8478,
+      dim: 0x5f5a51, slate: 0x2e2c28, surface: 0x1f1e1a, ground: 0x1a1915, danger: 0xd65a3f
+    };
+
+    // Camera framing per slide. az/el in degrees; radius is the world-space
+    // radius that must stay fully in view, whatever the panel's aspect ratio.
+    const slideFraming = [
+      { target: [0.1, 1.3, 0.3],  az: 26, el: 26, radius: 5.0 },
+      { target: [-0.5, 1.6, 0.3], az: 16, el: 18, radius: 4.3 },
+      { target: [0, 1.0, 0],      az: 26, el: 28, radius: 5.0 }, // video slide, scene hidden
+      { target: [0, 1.0, 0],      az: 26, el: 28, radius: 5.0 }, // demo video slide, scene hidden
+      { target: [0, 0.6, 0.0],    az: 10, el: 26, radius: 5.0 },
+      { target: [-0.1, 0.9, 0.0], az: 24, el: 40, radius: 4.8 },
+      { target: [0, 0.9, 0.0],    az: 0,  el: 42, radius: 4.9 },
+      { target: [0, 1.0, 0],      az: 26, el: 28, radius: 5.0 }, // enrollment video slide, scene hidden
+      { target: [0, 1.0, 0],      az: 26, el: 28, radius: 5.0 }  // full demo video slide, scene hidden
+    ];
+
+    let targetCamPos = new THREE.Vector3();
+    let targetLookAt = new THREE.Vector3();
+    let isTransitioning = false;
+    const renderClock = new THREE.Clock();
+    let slideStart = 0;
+
+    function framingFor(idx) {
+      const f = slideFraming[idx];
+      const target = new THREE.Vector3(...f.target);
+      const az = THREE.MathUtils.degToRad(f.az);
+      const el = THREE.MathUtils.degToRad(f.el);
+      const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+      const vFov = THREE.MathUtils.degToRad(camera.fov);
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+      // 0.86 leaves room for the mode badge above and the HUD card below
+      const dist = f.radius / Math.sin(Math.min(vFov, hFov) / 2 * 0.86);
+      return { pos: target.clone().addScaledVector(dir, dist), target };
+    }
+
+    function init3D() {
+      const container = document.getElementById('stage-container');
+      const canvas = document.getElementById('three-canvas');
+
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x12110e, 0.012);
+
+      camera = new THREE.PerspectiveCamera(30, w / h, 0.1, 1000);
+
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(w, h);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      controls = new THREE.OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.minDistance = 8;
+      controls.maxDistance = 70;
+      controls.minPolarAngle = Math.PI / 6;
+      controls.maxPolarAngle = Math.PI / 2.25;
+
+      const f0 = framingFor(curSlide);
+      camera.position.copy(f0.pos);
+      controls.target.copy(f0.target);
+      targetCamPos.copy(f0.pos);
+      targetLookAt.copy(f0.target);
+
+      controls.addEventListener('start', () => {
+        isTransitioning = false;
+      });
+
+      mainGroup = new THREE.Group();
+      scene.add(mainGroup);
+
+      // Neutral lighting; the key light casts the only shadows in the scene
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      keyLight.position.set(10, 18, 12);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.set(2048, 2048);
+      keyLight.shadow.camera.left = -9;
+      keyLight.shadow.camera.right = 9;
+      keyLight.shadow.camera.top = 9;
+      keyLight.shadow.camera.bottom = -9;
+      keyLight.shadow.camera.far = 60;
+      keyLight.shadow.bias = -0.0006;
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0x9aa8b6, 0.35);
+      fillLight.position.set(-16, 14, -12);
+      scene.add(fillLight);
+
+      const grid = new THREE.GridHelper(26, 26, 0x2a2823, 0x1b1a16);
+      mainGroup.add(grid);
+
+      const shadowCatcher = new THREE.Mesh(
+        new THREE.PlaneGeometry(40, 40),
+        new THREE.ShadowMaterial({ opacity: 0.32 })
+      );
+      shadowCatcher.rotation.x = -Math.PI / 2;
+      shadowCatcher.position.y = 0.002;
+      shadowCatcher.receiveShadow = true;
+      mainGroup.add(shadowCatcher);
+
+      buildSimulations();
+
+      simGroups.forEach(g => g.traverse(o => {
+        if (o.isMesh) {
+          o.castShadow = !o.userData.noShadow;
+          o.receiveShadow = true;
+        }
+      }));
+
+      setupResize(container);
+      animate();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCENES — ONE PER SLIDE, EACH SHOWING WHAT THE SLIDE SAYS
+    // ═══════════════════════════════════════════════════════════════
+    let sim1Data = {}, sim2Data = {}, sim3Data = {}, sim4Data = {}, sim5Data = {};
+
+    function newSimGroup() {
+      const g = new THREE.Group();
+      mainGroup.add(g);
+      simGroups.push(g);
+      return g;
+    }
+
+    function arc(a, b, lift) {
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      mid.y += lift;
+      return new THREE.QuadraticBezierCurve3(a, mid, b);
+    }
+
+    function curveLine(curve, material) {
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)), material);
+      if (material.isLineDashedMaterial) line.computeLineDistances();
+      return line;
+    }
+
+    function makePacket(color, size = 0.16) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshBasicMaterial({ color }));
+      p.userData.noShadow = true;
+      p.visible = false;
+      return p;
+    }
+
+    // Moves `packet` along `curve` while p is inside [t0, t1]; hides it otherwise
+    function runPacket(packet, curve, p, t0, t1) {
+      if (p < t0 || p > t1) { packet.visible = false; return; }
+      packet.visible = true;
+      packet.position.copy(curve.getPoint(ease((p - t0) / (t1 - t0))));
+    }
+
+    function ease(x) {
+      return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+    }
+
+    function buildSimulations() {
+      const dimLine = new THREE.LineBasicMaterial({ color: PAL.dim, transparent: true, opacity: 0.9 });
+
+      // ─────────────────────────────────────────────────────────────
+      // SLIDE 1 — Golden hour: ambulance at the ER, 45 of 60 minutes gone
+      // ─────────────────────────────────────────────────────────────
+      const g1 = newSimGroup();
+
+      const road = new THREE.Mesh(
+        new THREE.PlaneGeometry(6.7, 1.8),
+        new THREE.MeshStandardMaterial({ color: PAL.ground, roughness: 0.95 })
+      );
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(-1.65, 0.01, 0.6);
+      road.userData.noShadow = true;
+      g1.add(road);
+
+      const dashMat = new THREE.MeshBasicMaterial({ color: 0x2e2b26 });
+      for (let i = 0; i < 6; i++) {
+        const d = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.005, 0.06), dashMat);
+        d.position.set(-4.6 + i * 1.1, 0.015, 0.6);
+        d.userData.noShadow = true;
+        g1.add(d);
+      }
+
+      const amb1 = createAmbulanceMesh(PAL.light, PAL.danger);
+      amb1.rotation.y = 0;
+      amb1.position.set(-2.4, 0, 0.6);
+      g1.add(amb1);
+      sim1Data.flasher = amb1.userData.flasher;
+
+      const er1 = createHospitalMesh(PAL.slate, PAL.surface);
+      er1.rotation.y = -0.15;
+      er1.position.set(3.2, 0, -1.6);
+      g1.add(er1);
+
+      // Golden-hour dial on the ground around the ambulance: 60 minute ticks
+      const dialCenter = new THREE.Vector3(-2.4, 0, 0.6);
+      sim1Data.tickOff = new THREE.MeshBasicMaterial({ color: 0x3d3a34 });
+      sim1Data.tickOn = new THREE.MeshBasicMaterial({ color: PAL.danger });
+      sim1Data.ticks = [];
+      for (let i = 0; i < 60; i++) {
+        const a = -Math.PI / 2 + i * Math.PI * 2 / 60;
+        const major = i % 5 === 0;
+        const len = major ? 0.34 : 0.18;
+        const tick = new THREE.Mesh(new THREE.BoxGeometry(major ? 0.07 : 0.045, 0.02, len), sim1Data.tickOff);
+        const r = 2.2 - len / 2;
+        tick.position.set(dialCenter.x + Math.cos(a) * r, 0.03, dialCenter.z + Math.sin(a) * r);
+        tick.rotation.y = Math.PI / 2 - a;
+        tick.userData.noShadow = true;
+        g1.add(tick);
+        sim1Data.ticks.push(tick);
+      }
+
+      const lbl1a = makeLabel('GOLDEN HOUR', '45 of 60 minutes spent verifying', { color: '#d65a3f' });
+      lbl1a.position.set(-2.4, 0.05, 3.7);
+      g1.add(lbl1a);
+
+      const lbl1b = makeLabel('EMERGENCY ROOM', 'no verified record on arrival');
+      lbl1b.position.set(3.2, 4.1, -1.6);
+      g1.add(lbl1b);
+
+      // ─────────────────────────────────────────────────────────────
+      // SLIDE 2 — Certified lab signs the card once; it then reads offline
+      // ─────────────────────────────────────────────────────────────
+      const g2 = newSimGroup();
+
+      const lab = createLabMesh();
+      lab.position.set(-3.0, 0, 0);
+      g2.add(lab);
+
+      const lbl2a = makeLabel('CERTIFIED LAB', 'only source of blood type & allergies', { size: 0.36 });
+      lbl2a.position.set(-2.6, 0.05, 2.0);
+      g2.add(lbl2a);
+
+      const card = createMedicalCard(3.2, 2.0);
+      card.position.set(1.9, 1.95, 0.3);
+      card.rotation.set(-0.08, 0.28, 0);
+      g2.add(card);
+      sim2Data.card = card;
+      sim2Data.seal = card.userData.seal;
+
+      const lbl2b = makeLabel('READS OFFLINE', 'no network needed at the scene', { size: 0.36 });
+      lbl2b.position.set(1.9, 0.05, 1.3);
+      g2.add(lbl2b);
+
+      sim2Data.curve = arc(new THREE.Vector3(-3.0, 2.85, 0), new THREE.Vector3(0.4, 2.2, 0.1), 1.6);
+      g2.add(curveLine(sim2Data.curve, new THREE.LineDashedMaterial({ color: PAL.mid, dashSize: 0.14, gapSize: 0.1 })));
+      sim2Data.packet = makePacket(PAL.accent);
+      g2.add(sim2Data.packet);
+
+      const lbl2c = makeLabel('SIGNED ONCE', 'lab key, verifiable offline', { size: 0.32 });
+      lbl2c.position.copy(sim2Data.curve.getPoint(0.5)).add(new THREE.Vector3(0, 0.25, 0));
+      g2.add(lbl2c);
+
+      // ─────────────────────────────────────────────────────────────
+      // SLIDE 4 — 12-month timeline: record validity drains, checkups refill it
+      // ─────────────────────────────────────────────────────────────
+      const g3 = newSimGroup();
+      const x0 = -4.8, step = 0.8, zT = 0.9;
+      sim3Data.x0 = x0; sim3Data.step = step;
+
+      const track = new THREE.Mesh(new THREE.BoxGeometry(12 * step + 0.5, 0.01, 0.05), new THREE.MeshBasicMaterial({ color: 0x2e2b26 }));
+      track.position.set(0, 0.012, zT);
+      track.userData.noShadow = true;
+      g3.add(track);
+
+      const tileMat = new THREE.MeshStandardMaterial({ color: PAL.surface, roughness: 0.8 });
+      const tileOn = new THREE.MeshStandardMaterial({ color: PAL.accent, roughness: 0.6 });
+      sim3Data.pings = [];
+      for (let m = 0; m <= 12; m++) {
+        const isCheckup = m % 6 === 0;
+        const x = x0 + m * step;
+        const tile = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.46), isCheckup ? tileOn : tileMat);
+        tile.position.set(x, 0.025, zT);
+        g3.add(tile);
+
+        if (isCheckup) {
+          const clinic = makeClinic();
+          clinic.position.set(x, 0, zT - 1.5);
+          g3.add(clinic);
+
+          const ml = makeLabel(`MONTH ${m}`, null, { size: 0.32, color: '#9a9488' });
+          ml.position.set(x, 0.05, zT + 0.9);
+          g3.add(ml);
+
+          // Reminder ripple at the clinic before each renewal
+          if (m > 0) {
+            const ping = new THREE.Mesh(
+              new THREE.RingGeometry(0.7, 0.76, 48),
+              new THREE.MeshBasicMaterial({ color: PAL.accent, transparent: true, opacity: 0, side: THREE.DoubleSide })
+            );
+            ping.rotation.x = -Math.PI / 2;
+            ping.position.set(x, 0.02, zT - 1.5);
+            ping.userData = { noShadow: true, month: m };
+            g3.add(ping);
+            sim3Data.pings.push(ping);
+          }
+        }
+      }
+
+      const lbl3 = makeLabel('CLINIC CHECKUP', 'record re-verified every 6 months');
+      lbl3.position.set(x0 + 6 * step, 1.3, zT - 1.5);
+      g3.add(lbl3);
+
+      // Patient walking the timeline with a validity meter beside them
+      const walker = new THREE.Group();
+      walker.add(makePerson(PAL.light));
+      const meterBack = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.2, 0.12), new THREE.MeshStandardMaterial({ color: PAL.surface }));
+      meterBack.position.set(0.42, 0.65, 0);
+      walker.add(meterBack);
+      sim3Data.fillOk = new THREE.MeshStandardMaterial({ color: PAL.accent, roughness: 0.5 });
+      sim3Data.fillLow = new THREE.MeshStandardMaterial({ color: PAL.danger, roughness: 0.5 });
+      const meterFill = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.2, 0.14), sim3Data.fillOk);
+      walker.add(meterFill);
+      walker.position.set(x0, 0.05, zT);
+      g3.add(walker);
+      sim3Data.walker = walker;
+      sim3Data.meterFill = meterFill;
+
+      // ─────────────────────────────────────────────────────────────
+      // SLIDE 5 — Lab → card → ambulance → ER, one connected hand-off
+      // ─────────────────────────────────────────────────────────────
+      const g4 = newSimGroup();
+      const N = {
+        lab:  new THREE.Vector3(-1.4, 0, -2.6),
+        card: new THREE.Vector3(-3.8, 0, 0.6),
+        amb:  new THREE.Vector3(-0.6, 0, 2.4),
+        hosp: new THREE.Vector3(3.4, 0, -0.4)
+      };
+
+      const lab4 = createLabMesh();
+      lab4.scale.setScalar(0.55);
+      lab4.position.copy(N.lab);
+      g4.add(lab4);
+
+      const patient = makePerson(PAL.light);
+      patient.position.copy(N.card).add(new THREE.Vector3(-0.35, 0, 0));
+      g4.add(patient);
+      const card4 = createMedicalCard(1.12, 0.7);
+      card4.position.copy(N.card).add(new THREE.Vector3(0.35, 0.75, 0.1));
+      card4.rotation.set(-0.15, 0.4, 0);
+      g4.add(card4);
+
+      const amb4 = createAmbulanceMesh(PAL.light, PAL.danger);
+      amb4.scale.setScalar(0.7);
+      amb4.position.copy(N.amb);
+      amb4.rotation.y = -Math.atan2(N.hosp.z - N.amb.z, N.hosp.x - N.amb.x);
+      g4.add(amb4);
+
+      const er4 = createHospitalMesh(PAL.slate, PAL.accent);
+      er4.scale.setScalar(0.65);
+      er4.rotation.y = -0.35;
+      er4.position.copy(N.hosp);
+      g4.add(er4);
+      sim4Data.erWindows = er4.userData.windows;
+      sim4Data.erWindows.emissiveIntensity = 0;
+
+      const at = (v, y) => v.clone().setY(y);
+      sim4Data.links = [
+        arc(at(N.lab, 1.2), at(N.card, 1.0), 1.0),
+        arc(at(N.card, 1.0), at(N.amb, 0.6), 1.0),
+        arc(at(N.amb, 0.6), at(N.hosp, 1.0), 1.2)
+      ];
+      sim4Data.packets = sim4Data.links.map(c => {
+        g4.add(curveLine(c, dimLine));
+        const p = makePacket(PAL.accent);
+        g4.add(p);
+        return p;
+      });
+
+      [
+        ['LAB', 'signs the record', N.lab, 1.8],
+        ['PATIENT CARD', 'scanned at the scene', N.card, 1.5],
+        ['AMBULANCE', 'streams ETA + record', N.amb, 1.3],
+        ['HOSPITAL ER', 'bay prepared before arrival', N.hosp, 2.7]
+      ].forEach(([t, s, pos, y]) => {
+        const l = makeLabel(t, s, { size: 0.36 });
+        l.position.copy(pos).setY(y);
+        g4.add(l);
+      });
+
+      // ─────────────────────────────────────────────────────────────
+      // SLIDE 6 — Who pays: clinics, ERs and companies fund it; citizens don't
+      // ─────────────────────────────────────────────────────────────
+      const g5 = newSimGroup();
+
+      const platform = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.36, 2.2), new THREE.MeshStandardMaterial({ color: PAL.slate, roughness: 0.6 }));
+      platform.position.y = 0.18;
+      g5.add(platform);
+      const platformTop = new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.04, 2.24), new THREE.MeshStandardMaterial({ color: PAL.accent, roughness: 0.5 }));
+      platformTop.scale.set(1, 1, 0.06);
+      platformTop.position.z = 1.05;
+      platformTop.position.y = 0.2;
+      g5.add(platformTop);
+      const lblCore = makeLabel('PRANREKHA', null, { size: 0.4 });
+      lblCore.position.set(0, 0.45, 0);
+      g5.add(lblCore);
+
+      const payers = [
+        { mesh: makeClinic(), pos: new THREE.Vector3(-4.0, 0, -1.2), title: 'CLINICS', sub: '8% booking fee', y: 1.2 },
+        { mesh: createHospitalMesh(PAL.slate, PAL.surface), pos: new THREE.Vector3(0, 0, -3.9), title: 'HOSPITAL ERs', sub: '$1,200 / month', y: 2.3, scale: 0.55 },
+        { mesh: makeOffice(), pos: new THREE.Vector3(4.0, 0, -1.2), title: 'COMPANIES', sub: 'employee health plans', y: 2.85 }
+      ];
+      sim5Data.flows = [];
+      payers.forEach(p => {
+        if (p.scale) p.mesh.scale.setScalar(p.scale);
+        if (p.mesh.rotation.y) p.mesh.rotation.y = 0;
+        p.mesh.position.copy(p.pos);
+        g5.add(p.mesh);
+        const l = makeLabel(p.title, p.sub, { size: 0.36 });
+        l.position.copy(p.pos).setY(p.y);
+        g5.add(l);
+
+        const path = new THREE.LineCurve3(at(p.pos, 0.25), new THREE.Vector3(0, 0.25, 0));
+        g5.add(curveLine(path, dimLine));
+        const tokens = [0, 1, 2].map(() => {
+          const t = makePacket(PAL.accent, 0.14);
+          t.visible = true;
+          g5.add(t);
+          return t;
+        });
+        sim5Data.flows.push({ path, tokens });
+      });
+
+      [-0.55, 0, 0.55].forEach((x, i) => {
+        const person = makePerson(PAL.light);
+        person.position.set(x, 0, 3.6 + (i === 1 ? 0.3 : 0));
+        g5.add(person);
+      });
+      const lblCitizens = makeLabel('CITIZENS', 'free in emergencies', { size: 0.36 });
+      lblCitizens.position.set(1.9, 0.1, 3.7);
+      g5.add(lblCitizens);
+
+      sim5Data.outPath = new THREE.LineCurve3(new THREE.Vector3(0, 0.25, 1.1), new THREE.Vector3(0, 0.25, 3.2));
+      g5.add(curveLine(sim5Data.outPath, new THREE.LineDashedMaterial({ color: PAL.dim, dashSize: 0.14, gapSize: 0.1 })));
+      sim5Data.outCard = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.22), new THREE.MeshStandardMaterial({ color: PAL.light }));
+      sim5Data.outCard.userData.noShadow = true;
+      g5.add(sim5Data.outCard);
+
+      // Initialize weights for smooth transitions
+      simGroups.forEach((g, i) => {
+        g.userData.currentWeight = (i === 0) ? 1.0 : 0.0;
+        g.userData.targetWeight = (i === 0) ? 1.0 : 0.0;
+        g.visible = (i === 0);
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MESH & LABEL HELPERS
+    // ═══════════════════════════════════════════════════════════════
+    function makeLabel(title, sub, opts = {}) {
+      const k = 2; // canvas pixels per CSS pixel
+      const fontT = `600 ${24 * k}px "IBM Plex Mono", monospace`;
+      const fontS = `400 ${22 * k}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+      const c = document.createElement('canvas');
+      const ctx = c.getContext('2d');
+      ctx.font = fontT;
+      const wT = ctx.measureText(title).width;
+      let wS = 0;
+      if (sub) { ctx.font = fontS; wS = ctx.measureText(sub).width; }
+      const pad = 8 * k;
+      c.width = Math.ceil(Math.max(wT, wS) + pad * 2);
+      c.height = Math.ceil((sub ? 70 : 38) * k);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.font = fontT;
+      ctx.fillStyle = opts.color || '#ede8dd';
+      ctx.fillText(title, c.width / 2, 4 * k);
+      if (sub) {
+        ctx.font = fontS;
+        ctx.fillStyle = '#9a9488';
+        ctx.fillText(sub, c.width / 2, 40 * k);
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.minFilter = THREE.LinearFilter;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+      const worldPerPx = (opts.size || 0.44) / (38 * k);
+      sprite.scale.set(c.width * worldPerPx, c.height * worldPerPx, 1);
+      sprite.center.set(0.5, 0);
+      sprite.renderOrder = 10;
+      return sprite;
+    }
+
+    function drawCardFace() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 640;
+      const x = c.getContext('2d');
+      const ink = '#1a1d22', muted = '#6b7079';
+
+      x.fillStyle = '#ece6d8';
+      x.fillRect(0, 0, c.width, c.height);
+
+      x.textBaseline = 'top';
+      x.fillStyle = ink;
+      x.font = '600 34px \"IBM Plex Mono\", monospace';
+      x.fillText('PRANREKHA', 56, 52);
+      x.fillStyle = muted;
+      x.font = '600 24px \"IBM Plex Mono\", monospace';
+      x.textAlign = 'right';
+      x.fillText('EMERGENCY MEDICAL CARD', 968, 58);
+      x.textAlign = 'left';
+      x.fillStyle = '#c9ccd0';
+      x.fillRect(56, 112, 912, 3);
+
+      x.fillStyle = muted;
+      x.font = '600 22px \"IBM Plex Mono\", monospace';
+      x.fillText('BLOOD TYPE', 56, 150);
+      x.fillStyle = '#c4473f';
+      x.font = '700 168px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      x.fillText('O+', 48, 172);
+
+      x.fillStyle = muted;
+      x.font = '600 22px \"IBM Plex Mono\", monospace';
+      x.fillText('ALLERGIES', 56, 404);
+      x.fillStyle = ink;
+      x.font = '500 44px "Helvetica Neue", Helvetica, Arial, sans-serif';
+      x.fillText('Penicillin', 56, 434);
+
+      x.fillStyle = muted;
+      x.font = '600 22px \"IBM Plex Mono\", monospace';
+      x.fillText('ID •••• 4821   ·   VALID 6 MO', 56, 556);
+
+      // QR-style block (deterministic pattern)
+      let seed = 11;
+      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const n = 21, qx = 660, qy = 146, qs = 252, m = qs / n;
+      x.fillStyle = ink;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const inFinder = (i < 8 && j < 8) || (i >= n - 8 && j < 8) || (i < 8 && j >= n - 8);
+          if (!inFinder && rnd() > 0.52) x.fillRect(qx + i * m, qy + j * m, m + 0.5, m + 0.5);
+        }
+      }
+      [[0, 0], [n - 7, 0], [0, n - 7]].forEach(([cx, cy]) => {
+        x.fillStyle = ink;     x.fillRect(qx + cx * m, qy + cy * m, 7 * m, 7 * m);
+        x.fillStyle = '#ece6d8'; x.fillRect(qx + (cx + 1) * m, qy + (cy + 1) * m, 5 * m, 5 * m);
+        x.fillStyle = ink;     x.fillRect(qx + (cx + 2) * m, qy + (cy + 2) * m, 3 * m, 3 * m);
+      });
+      x.fillStyle = muted;
+      x.textAlign = 'center';
+      x.fillText('SCAN · WORKS OFFLINE', qx + qs / 2, qy + qs + 20);
+      return c;
+    }
+
+    function drawSeal() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const x = c.getContext('2d');
+      x.strokeStyle = '#2f8f80';
+      x.lineWidth = 14;
+      x.beginPath(); x.arc(128, 128, 104, 0, Math.PI * 2); x.stroke();
+      x.lineWidth = 18; x.lineCap = 'round'; x.lineJoin = 'round';
+      x.beginPath(); x.moveTo(80, 132); x.lineTo(114, 166); x.lineTo(180, 96); x.stroke();
+      return c;
+    }
+
+    let cardFaceTexture = null;
+    function createMedicalCard(w, h) {
+      if (!cardFaceTexture) {
+        cardFaceTexture = new THREE.CanvasTexture(drawCardFace());
+        cardFaceTexture.anisotropy = 8;
+      }
+      const edge = new THREE.MeshStandardMaterial({ color: PAL.stone, roughness: 0.6 });
+      const face = new THREE.MeshStandardMaterial({ map: cardFaceTexture, roughness: 0.55 });
+      const back = new THREE.MeshStandardMaterial({ color: PAL.slate, roughness: 0.6 });
+      const card = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), [edge, edge, edge, edge, face, back]);
+
+      const seal = new THREE.Mesh(
+        new THREE.PlaneGeometry(w * 0.12, w * 0.12),
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(drawSeal()), transparent: true, opacity: 1, depthWrite: false })
+      );
+      seal.position.set(w * (900 / 1024 - 0.5), h * (0.5 - 548 / 640), 0.03);
+      seal.userData.noShadow = true;
+      card.add(seal);
+      card.userData.seal = seal;
+      return card;
+    }
+
+    function makePerson(color) {
+      const p = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 0.6, 16), mat);
+      body.position.y = 0.3;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), mat);
+      head.position.y = 0.78;
+      p.add(body, head);
+      return p;
+    }
+
+    function makeClinic() {
+      const c = new THREE.Group();
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.9, 0.9), new THREE.MeshStandardMaterial({ color: PAL.stone, roughness: 0.6 }));
+      wall.position.y = 0.45;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.08, 1.02), new THREE.MeshStandardMaterial({ color: PAL.slate }));
+      roof.position.y = 0.94;
+      const crossMat = new THREE.MeshStandardMaterial({ color: PAL.accent, roughness: 0.5 });
+      const cv = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.34, 0.02), crossMat);
+      const ch = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.02), crossMat);
+      cv.position.set(0, 0.55, 0.46);
+      ch.position.set(0, 0.55, 0.46);
+      c.add(wall, roof, cv, ch);
+      return c;
+    }
+
+    function makeOffice() {
+      const o = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.6, 1.1), new THREE.MeshStandardMaterial({ color: PAL.slate, roughness: 0.6 }));
+      body.position.y = 1.3;
+      o.add(body);
+      const bandMat = new THREE.MeshStandardMaterial({ color: 0x3d3a34, roughness: 0.5 });
+      for (let i = 0; i < 5; i++) {
+        const band = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.06, 1.12), bandMat);
+        band.position.y = 0.4 + i * 0.48;
+        o.add(band);
+      }
+      return o;
+    }
+
+    function createAmbulanceMesh(bodyColor, stripeColor) {
+      const amb = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(2.3, 1.1, 1.2),
+        new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3 })
+      );
+      body.position.y = 0.55;
+      amb.add(body);
+
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(2.32, 0.22, 1.22),
+        new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.4 })
+      );
+      stripe.position.y = 0.55;
+      amb.add(stripe);
+
+      const cab = new THREE.Mesh(
+        new THREE.BoxGeometry(0.75, 0.65, 1.15),
+        new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.2 })
+      );
+      cab.position.set(0.85, 0.85, 0);
+      amb.add(cab);
+
+      const flasher = new THREE.Mesh(
+        new THREE.BoxGeometry(0.55, 0.14, 0.7),
+        new THREE.MeshStandardMaterial({ color: stripeColor, emissive: stripeColor, emissiveIntensity: 0.6 })
+      );
+      flasher.position.set(0.18, 1.18, 0);
+      amb.add(flasher);
+      amb.userData.flasher = flasher;
+
+      const wMat = new THREE.MeshStandardMaterial({ color: 0x151719, roughness: 0.9 });
+      const wGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.18, 16);
+      [[-0.68, 0.22, 0.62], [-0.68, 0.22, -0.62], [0.68, 0.22, 0.62], [0.68, 0.22, -0.62]].forEach(([x, y, z]) => {
+        const w = new THREE.Mesh(wGeo, wMat);
+        w.rotation.x = Math.PI / 2;
+        w.position.set(x, y, z);
+        amb.add(w);
+      });
+
+      amb.rotation.y = -Math.PI / 4;
+      return amb;
+    }
+
+    function createHospitalMesh(wallColor, accentColor) {
+      const hosp = new THREE.Group();
+      const main = new THREE.Mesh(
+        new THREE.BoxGeometry(3.0, 3.0, 2.6),
+        new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.6 })
+      );
+      main.position.y = 1.5;
+      hosp.add(main);
+
+      const windowsMat = new THREE.MeshStandardMaterial({ color: 0x22201c, emissive: accentColor, emissiveIntensity: 0.3, roughness: 0.4 });
+      const winTower = new THREE.Mesh(new THREE.BoxGeometry(3.05, 2.4, 0.7), windowsMat);
+      winTower.position.set(0, 1.5, 1.0);
+      hosp.add(winTower);
+      hosp.userData.windows = windowsMat;
+
+      // Red Medical Cross
+      const crossMat = new THREE.MeshStandardMaterial({ color: 0xd65a3f, emissive: 0xd65a3f, emissiveIntensity: 0.5 });
+      const cV = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.9, 0.16), crossMat);
+      cV.position.set(0, 3.4, 1.0);
+      const cH = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.16), crossMat);
+      cH.position.set(0, 3.4, 1.0);
+      hosp.add(cV);
+      hosp.add(cH);
+
+      hosp.rotation.y = -Math.PI / 4;
+      return hosp;
+    }
+
+    function createLabMesh() {
+      const lab = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.5, 1.9, 1.6, 32),
+        new THREE.MeshStandardMaterial({ color: PAL.slate, roughness: 0.6 })
+      );
+      base.position.y = 0.8;
+      lab.add(base);
+
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.53, 1.53, 0.08, 32),
+        new THREE.MeshStandardMaterial({ color: PAL.accent, roughness: 0.5 })
+      );
+      band.position.y = 1.45;
+      lab.add(band);
+
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(1.2, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: PAL.stone, roughness: 0.4 })
+      );
+      dome.position.y = 1.6;
+      lab.add(dome);
+      return lab;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SLIDE CONTROLLER: SWITCHES EDITORIAL, VIDEO & 3D SIMULATIONS
+    // ═══════════════════════════════════════════════════════════════
+    function goToSlide(idx) {
+      if (idx < 0 || idx >= totalSlides) return;
+      document.querySelectorAll('.slide-view').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.s-dot').forEach(d => d.classList.remove('active'));
+
+      curSlide = idx;
+      const targetSlideEl = document.getElementById(`slide-${curSlide}`);
+      if (targetSlideEl) targetSlideEl.classList.add('active');
+      const dots = document.querySelectorAll('.s-dot');
+      if (dots[curSlide]) dots[curSlide].classList.add('active');
+
+      // 1. Manage Dedicated Video Viewport vs 3D Simulation Group Visibility
+      const videoWrapper = document.getElementById('video-viewport-wrapper');
+      // Pause whichever video does not belong to this slide
+      Object.values(videoForSlide).forEach(id => {
+        const v = document.getElementById(id);
+        if (v && id !== videoForSlide[curSlide] && !v.paused) v.pause();
+      });
+      const videoEl = videoForSlide[curSlide] ? document.getElementById(videoForSlide[curSlide]) : null;
+
+      if (videoEl) {
+        // Show this slide's video (16:9 walkthrough or portrait phone demo)
+        document.querySelectorAll('.video-media-wrap').forEach(w => { w.hidden = w.dataset.slide !== String(curSlide); });
+        const activeWrap = videoEl.closest('.video-media-wrap');
+        document.querySelector('.video-card').classList.toggle('is-portrait', activeWrap.classList.contains('is-portrait'));
+        if (videoWrapper) videoWrapper.classList.add('active');
+        if (restartOnEnter.has(curSlide)) videoEl.currentTime = 0;
+        // Videos wait paused on entry; full screen (or Play) starts them
+        if (document.fullscreenElement) {
+          videoEl.play().catch(e => console.log('Video play deferred:', e));
+        } else {
+          videoEl.pause();
+        }
+        updateVideoPlayButton(!videoEl.paused);
+        const muteBtn = document.getElementById('v-mute-btn');
+        if (muteBtn) muteBtn.textContent = videoEl.muted ? 'Unmute' : 'Mute';
+        // Hide every 3D scene immediately so nothing lingers behind the video
+        simGroups.forEach(hideSimGroup);
+      } else {
+        if (videoWrapper) {
+          videoWrapper.classList.remove('active');
+          videoWrapper.classList.remove('cinema-mode'); // Exit cinema if navigating away
+          const expandBtn = document.getElementById('video-expand-btn');
+          if (expandBtn) expandBtn.textContent = 'Full screen';
+          const ctrlFsBtn = document.getElementById('v-ctrl-fs-btn');
+          if (ctrlFsBtn) ctrlFsBtn.textContent = 'Full screen';
+        }
+        updateVideoPlayButton(false);
+        // Map curSlide to 3D sim group index:
+        // slide 0 -> group 0 (Problem)
+        // slide 1 -> group 1 (Attestation)
+        // slide 4 -> group 2 (Sustainability)
+        // slide 5 -> group 3 (Connected System)
+        // slide 6 -> group 4 (Revenue Model)
+        const targetSimIdx = simForSlide[curSlide];
+        // Outgoing scene disappears at once; only the incoming one eases in
+        simGroups.forEach((g, i) => {
+          if (i === targetSimIdx) {
+            g.userData.targetWeight = 1.0;
+          } else {
+            hideSimGroup(g);
+          }
+        });
+      }
+
+      // 2. Update the live simulation HUD and Badge
+      const meta = slideSimMetadata[curSlide];
+      if (meta) {
+        document.getElementById('sim-hud-icon').textContent = meta.icon;
+        document.getElementById('sim-hud-title').textContent = meta.title;
+        document.getElementById('sim-hud-metric').textContent = meta.metric;
+      }
+
+      // 3. Restart this slide's animation and glide the camera to its framing
+      slideStart = renderClock.elapsedTime;
+      if (camera) {
+        const f = framingFor(curSlide);
+        targetCamPos.copy(f.pos);
+        targetLookAt.copy(f.target);
+        isTransitioning = true;
+      }
+
+    }
+
+    function hideSimGroup(g) {
+      g.userData.targetWeight = 0.0;
+      g.userData.currentWeight = 0.0;
+      g.visible = false;
+    }
+
+    function nextSlide() { goToSlide(curSlide + 1); }
+    function prevSlide() { goToSlide(curSlide - 1); }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FULLSCREEN / MAXIMIZE PRESENTATION FEATURE
+    // ═══════════════════════════════════════════════════════════════
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.warn(`Fullscreen request error: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(err => {
+            console.warn(`Exit fullscreen error: ${err.message}`);
+          });
+        }
+      }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      const fsIcon = document.getElementById('fs-icon');
+      const fsText = document.getElementById('fs-text');
+      const fsBtn = document.getElementById('btn-fullscreen');
+      if (document.fullscreenElement) {
+        if (fsIcon) fsIcon.textContent = '🗗';
+        if (fsText) fsText.textContent = 'Exit full screen';
+        if (fsBtn) fsBtn.classList.add('active');
+        // Entering full screen on a video slide starts that video
+        const videoEl = videoForSlide[curSlide] ? document.getElementById(videoForSlide[curSlide]) : null;
+        if (videoEl && videoEl.paused) {
+          videoEl.play().catch(e => console.log('Video play deferred:', e));
+          updateVideoPlayButton(true);
+        }
+      } else {
+        if (fsIcon) fsIcon.textContent = '⛶';
+        if (fsText) fsText.textContent = 'Full screen';
+        if (fsBtn) fsBtn.classList.remove('active');
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // DEDICATED FULLSCREEN VIDEO / CINEMA MODE
+    // Flawlessly works even when the presentation is already maximized!
+    // ═══════════════════════════════════════════════════════════════
+    function toggleVideoFullscreen() {
+      const wrapper = document.getElementById('video-viewport-wrapper');
+      const videoEl = activeVideo();
+      const expandBtn = document.getElementById('video-expand-btn');
+      const ctrlFsBtn = document.getElementById('v-ctrl-fs-btn');
+      if (!wrapper || !videoEl) return;
+
+      const isCinema = wrapper.classList.toggle('cinema-mode');
+
+      if (expandBtn) {
+        expandBtn.textContent = isCinema ? 'Exit full screen' : 'Full screen';
+      }
+
+      if (ctrlFsBtn) {
+        ctrlFsBtn.textContent = isCinema ? 'Exit full screen' : 'Full screen';
+      }
+
+      // Ensure video is actively playing in fullscreen
+      if (isCinema) {
+        if (videoEl.paused) {
+          videoEl.play().catch(e => console.log('Autoplay deferred:', e));
+          updateVideoPlayButton(true);
+        }
+      }
+    }
+
+    function toggleVideoPlayback() {
+      const videoEl = activeVideo();
+      if (!videoEl) return;
+      if (videoEl.paused) {
+        videoEl.play();
+        updateVideoPlayButton(true);
+      } else {
+        videoEl.pause();
+        updateVideoPlayButton(false);
+      }
+    }
+
+    function updateVideoPlayButton(isPlaying) {
+      const btn = document.getElementById('v-play-btn');
+      if (btn) {
+        btn.textContent = isPlaying ? 'Pause' : 'Play';
+      }
+    }
+
+    function toggleVideoSound() {
+      const videoEl = activeVideo();
+      const muteBtn = document.getElementById('v-mute-btn');
+      if (!videoEl) return;
+      videoEl.muted = !videoEl.muted;
+      if (muteBtn) {
+        muteBtn.textContent = videoEl.muted ? 'Unmute' : 'Mute';
+      }
+    }
+
+    function restartVideo() {
+      const videoEl = activeVideo();
+      if (!videoEl) return;
+      videoEl.currentTime = 0;
+      videoEl.play();
+      updateVideoPlayButton(true);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // KEYBOARD NAVIGATION & SHORTCUTS
+    // ═══════════════════════════════════════════════════════════════
+    window.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      }
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+      if (e.key === 'Escape') {
+        const wrapper = document.getElementById('video-viewport-wrapper');
+        if (wrapper && wrapper.classList.contains('cinema-mode')) {
+          e.preventDefault();
+          toggleVideoFullscreen();
+          return;
+        }
+      }
+      if (e.key === 'v' || e.key === 'V') {
+        if (videoForSlide[curSlide]) {
+          e.preventDefault();
+          toggleVideoFullscreen();
+        }
+      }
+      if (e.key === 'm' || e.key === 'M') {
+        if (videoForSlide[curSlide]) {
+          e.preventDefault();
+          toggleVideoSound();
+        }
+      }
+    });
+
+    function setupResize(container) {
+      window.addEventListener('resize', () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        // Re-fit the current scene to the new panel shape
+        const f = framingFor(curSlide);
+        targetCamPos.copy(f.pos);
+        targetLookAt.copy(f.target);
+        isTransitioning = true;
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ANIMATION LOOP
+    // ═══════════════════════════════════════════════════════════════
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = renderClock.getDelta();
+      const time = renderClock.elapsedTime;
+      const t = time - slideStart; // seconds since this slide was opened
+
+      // Cross-fade between scenes
+      simGroups.forEach(g => {
+        g.userData.currentWeight += (g.userData.targetWeight - g.userData.currentWeight) * 0.12;
+        const w = g.userData.currentWeight;
+        if (w < 0.003) {
+          g.visible = false;
+        } else {
+          g.visible = true;
+          const s = 0.90 + w * 0.10;
+          g.scale.set(s, s, s);
+          g.position.y = (1.0 - w) * -0.7;
+        }
+      });
+
+      // Camera glide on slide change
+      if (isTransitioning) {
+        camera.position.lerp(targetCamPos, 0.045);
+        controls.target.lerp(targetLookAt, 0.045);
+        if (camera.position.distanceTo(targetCamPos) < 0.015) {
+          camera.position.copy(targetCamPos);
+          controls.target.copy(targetLookAt);
+          isTransitioning = false;
+        }
+      }
+      controls.update();
+
+      // Slide 1: dial fills to 45 of 60 minutes, then holds; beacon blinks
+      if (curSlide === 0 && sim1Data.ticks) {
+        const lit = Math.min(45, Math.floor(Math.max(0, t - 0.6) / 3.2 * 45));
+        sim1Data.ticks.forEach((tick, i) => {
+          tick.material = i < lit ? sim1Data.tickOn : sim1Data.tickOff;
+        });
+        sim1Data.flasher.material.emissiveIntensity = Math.sin(time * 7) > 0 ? 0.9 : 0.15;
+      }
+
+      // Slide 2: signature travels lab → card, seal appears, repeat
+      if (curSlide === 1 && sim2Data.card) {
+        const p = t % 5;
+        runPacket(sim2Data.packet, sim2Data.curve, p, 0.2, 1.8);
+        let o = 0;
+        if (p > 1.8) o = Math.min(1, (p - 1.8) / 0.3);
+        if (p > 4.5) o = Math.max(0, (5 - p) / 0.5);
+        sim2Data.seal.material.opacity = o;
+        sim2Data.card.position.y = 1.95 + Math.sin(time * 1.1) * 0.04;
+      }
+
+      // Slide 5: walk the 12-month timeline; validity drains and refills at checkups
+      if (curSlide === 4 && sim3Data.walker) {
+        const cyc = t % 11.5;
+        const month = Math.min(12, cyc / 10 * 12);
+        sim3Data.walker.position.x = sim3Data.x0 + month * sim3Data.step;
+        sim3Data.walker.position.y = 0.05 + (month < 12 ? Math.abs(Math.sin(time * 7)) * 0.03 : 0);
+
+        const v = month >= 12 ? 1 : 1 - (month % 6) / 6;
+        const hgt = Math.max(0.02, v) * 1.2;
+        sim3Data.meterFill.scale.y = hgt / 1.2;
+        sim3Data.meterFill.position.set(0.42, 0.05 + hgt / 2, 0);
+        sim3Data.meterFill.material = v < 0.2 ? sim3Data.fillLow : sim3Data.fillOk;
+
+        // Reminder ripple during the month before each renewal
+        sim3Data.pings.forEach(ping => {
+          const m = ping.userData.month;
+          if (month > m - 1.2 && month < m) {
+            const k = (time * 1.2) % 1;
+            ping.scale.setScalar(1 + k * 0.8);
+            ping.material.opacity = 0.8 * (1 - k);
+          } else {
+            ping.material.opacity = 0;
+          }
+        });
+      }
+
+      // Slide 6: one hand-off chain, then the ER bay lights up
+      if (curSlide === 5 && sim4Data.links) {
+        const p = t % 6;
+        const windows = [[0.2, 1.2], [1.4, 2.4], [2.6, 3.8]];
+        sim4Data.packets.forEach((pk, i) => runPacket(pk, sim4Data.links[i], p, windows[i][0], windows[i][1]));
+        let glow = 0;
+        if (p > 3.8) glow = Math.min(1, (p - 3.8) / 0.4);
+        if (p > 5.4) glow = Math.max(0, (6 - p) / 0.6);
+        sim4Data.erWindows.emissiveIntensity = glow * 0.35;
+      }
+
+      // Slide 7: payments flow in from payers; the card flows out free
+      if (curSlide === 6 && sim5Data.flows) {
+        sim5Data.flows.forEach(f => {
+          f.tokens.forEach((tok, k) => {
+            const u = (time * 0.28 + k / 3) % 1;
+            tok.position.copy(f.path.getPoint(u));
+          });
+        });
+        const u = (time * 0.35) % 1;
+        sim5Data.outCard.position.copy(sim5Data.outPath.getPoint(u));
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Wait for the web fonts so the canvas labels render in the deck's typefaces
+    window.addEventListener('DOMContentLoaded', () => {
+      Promise.all([
+        document.fonts.load('600 20px "IBM Plex Mono"')
+      ]).catch(() => {}).then(init3D);
+    });
+  </script>
+</body>
+</html>
