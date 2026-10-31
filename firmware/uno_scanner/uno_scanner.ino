@@ -18,8 +18,10 @@ unsigned long displayAt = 0;
 unsigned long lastScan = 0;
 unsigned long lastCheck = 0;
 char lastUid[21] = "";
+char shown1[17] = "";
+char shown2[17] = "";
 
-void show(const char *line1, const char *line2) {
+void draw(const char *line1, const char *line2) {
   if (!lcd) return;
   const char *lines[] = {line1, line2};
   for (byte row = 0; row < 2; row++) {
@@ -29,6 +31,37 @@ void show(const char *line1, const char *line2) {
       if (!ended && lines[row][col] == '\0') ended = true;
       lcd->write(ended ? ' ' : lines[row][col]);
     }
+  }
+}
+
+void show(const char *line1, const char *line2) {
+  strncpy(shown1, line1, 16); shown1[16] = '\0';
+  strncpy(shown2, line2, 16); shown2[16] = '\0';
+  draw(line1, line2);
+}
+
+// Probe both common I2C addresses for the LCD backpack and bind whichever answers.
+void probeLcd() {
+  lcd = NULL;
+  Wire.beginTransmission(0x27);
+  if (Wire.endTransmission() == 0) lcd = &lcd27;
+  if (!lcd) {
+    Wire.beginTransmission(0x3F);
+    if (Wire.endTransmission() == 0) lcd = &lcd3f;
+  }
+  if (lcd) { lcd->init(); lcd->backlight(); draw(shown1, shown2); }
+}
+
+// A loose I2C wire can corrupt the LCD into garbage or drop it off the bus.
+// If it is still present, re-init and redraw so it self-heals after a glitch;
+// if it dropped off, re-probe so a reconnected LCD comes back on its own.
+void healLcd() {
+  if (lcd) {
+    lcd->init();
+    lcd->backlight();
+    draw(shown1, shown2);
+  } else {
+    probeLcd();
   }
 }
 
@@ -63,13 +96,7 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
   Wire.setWireTimeout(25000, true);
-  Wire.beginTransmission(0x27);
-  if (Wire.endTransmission() == 0) lcd = &lcd27;
-  if (!lcd) {
-    Wire.beginTransmission(0x3F);
-    if (Wire.endTransmission() == 0) lcd = &lcd3f;
-  }
-  if (lcd) { lcd->init(); lcd->backlight(); }
+  probeLcd();
   SPI.begin();
   reader.PCD_Init();
   delay(50);
@@ -97,6 +124,7 @@ void loop() {
   if (millis() - lastCheck >= 10000) {
     lastCheck = millis();
     if (!readerReady) reader.PCD_Init();
+    healLcd();
     diagnostics();
   }
   if (!readerReady || !reader.PICC_IsNewCardPresent() || !reader.PICC_ReadCardSerial()) return;
