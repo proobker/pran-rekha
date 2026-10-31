@@ -40,13 +40,29 @@ void show(const char *line1, const char *line2) {
   draw(line1, line2);
 }
 
-// A loose I2C wire can corrupt the LCD into garbage until re-initialized.
-// Re-init periodically and redraw so the display self-heals after a glitch.
-void reinitLcd() {
-  if (!lcd) return;
-  lcd->init();
-  lcd->backlight();
-  draw(shown1, shown2);
+// Probe both common I2C addresses for the LCD backpack and bind whichever answers.
+void probeLcd() {
+  lcd = NULL;
+  Wire.beginTransmission(0x27);
+  if (Wire.endTransmission() == 0) lcd = &lcd27;
+  if (!lcd) {
+    Wire.beginTransmission(0x3F);
+    if (Wire.endTransmission() == 0) lcd = &lcd3f;
+  }
+  if (lcd) { lcd->init(); lcd->backlight(); draw(shown1, shown2); }
+}
+
+// A loose I2C wire can corrupt the LCD into garbage or drop it off the bus.
+// If it is still present, re-init and redraw so it self-heals after a glitch;
+// if it dropped off, re-probe so a reconnected LCD comes back on its own.
+void healLcd() {
+  if (lcd) {
+    lcd->init();
+    lcd->backlight();
+    draw(shown1, shown2);
+  } else {
+    probeLcd();
+  }
 }
 
 void diagnostics() {
@@ -80,13 +96,7 @@ void setup() {
   Serial.begin(115200);
   Wire.begin();
   Wire.setWireTimeout(25000, true);
-  Wire.beginTransmission(0x27);
-  if (Wire.endTransmission() == 0) lcd = &lcd27;
-  if (!lcd) {
-    Wire.beginTransmission(0x3F);
-    if (Wire.endTransmission() == 0) lcd = &lcd3f;
-  }
-  if (lcd) { lcd->init(); lcd->backlight(); }
+  probeLcd();
   SPI.begin();
   reader.PCD_Init();
   delay(50);
@@ -114,7 +124,7 @@ void loop() {
   if (millis() - lastCheck >= 10000) {
     lastCheck = millis();
     if (!readerReady) reader.PCD_Init();
-    reinitLcd();
+    healLcd();
     diagnostics();
   }
   if (!readerReady || !reader.PICC_IsNewCardPresent() || !reader.PICC_ReadCardSerial()) return;

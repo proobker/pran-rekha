@@ -77,6 +77,7 @@ def run(port, api):
     pages = []
     page = 0
     last_poll = last_send = last_page = 0
+    unknown_at = 0
     message = ("Pran Rekha", "Tap RFID card")
     incoming = b""
     reader_ready = False
@@ -102,6 +103,7 @@ def run(port, api):
                 pending = {"version": 1, "deviceId": api.device, "eventId": str(uuid.uuid4()), "tagUid": uid}
                 event = None
                 pages = []
+                unknown_at = 0
                 event_started = time.monotonic()
                 last_poll = last_send = 0
                 message = ("Card scanned", "Sending to app")
@@ -133,6 +135,7 @@ def run(port, api):
                     if updated != pages:
                         pages, page, last_page = updated, 0, now
                     message = pages[page]
+                    unknown_at = 0
                 else:
                     pages = []
                     message = {
@@ -143,6 +146,16 @@ def run(port, api):
                     }.get(state, ("App unavailable", "Try again"))
                     if state == "EXPIRED":
                         event = None
+                    # An unknown card shows its message briefly, then returns to the main screen.
+                    if state == "UNKNOWN_TAG":
+                        if not unknown_at:
+                            unknown_at = now
+                        elif now - unknown_at >= 5:
+                            event = None
+                            unknown_at = 0
+                            message = ("Pran Rekha", "Tap RFID card") if reader_ready else ("RFID not found", "Check wiring")
+                    else:
+                        unknown_at = 0
                 lcd(port, *message)
                 last_send = time.monotonic()
             except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError, TypeError) as exc:
