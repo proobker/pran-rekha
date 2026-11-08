@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Upload } from 'lucide-react';
+import { Localized } from './Localized';
 
 export type PhotoSource=HTMLImageElement|HTMLCanvasElement;
 
@@ -44,7 +45,7 @@ export function PhotoCapture({disabled,busy=false,alt,onImage,onError,showPrevie
     await onImage(canvas);
   }
 
-  return <>
+  return <Localized><>
     <div className="face-inputs">
       <label className="file-button"><Upload size={16}/> Upload image<input type="file" accept="image/*" capture={facing} disabled={disabled||busy} onChange={e=>{void onFile(e.target.files?.[0]);e.target.value='';}}/></label>
       {!camera?<button type="button" disabled={disabled||busy} onClick={()=>void startCamera()}><Camera size={16}/> Use camera</button>
@@ -54,5 +55,5 @@ export function PhotoCapture({disabled,busy=false,alt,onImage,onError,showPrevie
       <video ref={video} className="face-preview" playsInline muted hidden={!camera}/>
       {!camera&&showPreview&&preview&&<img className="face-preview" src={preview} alt={alt}/>}
     </div>
-  </>;
+  </></Localized>;
 }

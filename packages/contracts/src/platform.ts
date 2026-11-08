@@ -23,7 +23,7 @@ export const ScanSchema = z.object({
 }).strict();
 export const GrantRequestSchema = z.object({
   requestId: id, patientId: id, linkageId: id, purpose: z.string().min(5).max(500),
-  deviceId: id, confirmed: z.literal(true),
+  deviceId: id, confirmed: z.literal(true), identityVerified: z.literal(true),
 }).strict();
 export const DispatchRequestSchema = z.object({
   requestId: id, grantId: id, destination: id, etaMinutes: z.number().int().min(0).max(240),
@@ -37,6 +37,8 @@ export type Card = z.infer<typeof CardSchema>;
 export const AlertSchema = z.object({
   id, patientId: id, destination: id, unit: z.string(), etaMinutes: z.number(), timestamp: z.iso.datetime(),
   status: z.enum(['EN_ROUTE', 'ARRIVED', 'RESOLVED']), revision: z.number().int(), card: CardSchema,
+  acknowledgedAt: z.iso.datetime().optional(), acknowledgedBy: id.optional(),
+  handoffAt: z.iso.datetime().optional(), handoffBy: id.optional(),
 }).strict();
 export type Alert = z.infer<typeof AlertSchema>;
 export const PlatformProfileSchema = z.object({
@@ -67,8 +69,11 @@ export type FaceGalleryEntry = { patientId: string; name: string; descriptor: nu
 export const HandwrittenUpdateSchema = MutationSchema.extend({
   image: z.string().max(2_000_000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/),
   ocrText: z.string().max(8000), engine: z.string().min(1).max(100),
+  sourceType: z.enum(['handwritten_note','lab_report']).default('handwritten_note'),
+  patientIdentityVerified: z.literal(true).optional(),
+  reportSource: z.string().trim().min(1).max(160).optional(), reportNumber: z.string().trim().max(120).optional(),
   entries: z.array(z.object({
-    kind: EntrySchema.shape.kind.exclude(['report', 'donor', 'contact']), text: z.string().trim().min(1).max(2000),
+    kind: EntrySchema.shape.kind.exclude(['donor', 'contact']), text: z.string().trim().min(1).max(2000),
     original: z.string().max(2000), date: z.iso.date(),
   }).strict()).min(1).max(50),
 }).strict();
