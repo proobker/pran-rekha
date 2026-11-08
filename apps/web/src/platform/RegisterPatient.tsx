@@ -6,6 +6,7 @@ import { BloodGroups, type RegisteredPatient, type RegisterPatientRequest } from
 import { api, requestId } from './client';
 import { describe, FaceInputError, loadModels } from './face';
 import { PhotoCapture, type PhotoSource } from './PhotoCapture';
+import { Localized } from './Localized';
 
 const MAX_SIDE=480;
 // Downscale to a small JPEG before upload; the server stores it in the demo database.
@@ -49,7 +50,7 @@ export function RegisterPatient({onRegistered}:{onRegistered:(p:{id:string;name:
   }
 
   const ready=synthetic&&(!face||photoConsent)&&!faceBusy&&form.name.trim()&&form.dob&&/^[a-z0-9_-]{3,32}$/.test(form.username.trim())&&form.password.length>=12;
-  return <section className="surface wide register-patient">
+  return <Localized><section className="surface wide register-patient">
     <h2><UserPlus/> Register patient</h2>
     <p>Creates a synthetic Pran Rekha record, a patient login and an opaque QR locator. You can add a face photo now or later. Emergency sharing stays off until the patient approves each entry.</p>
     <form className="register-grid" onSubmit={e=>{e.preventDefault();if(ready)void submit();}}>
@@ -82,5 +83,5 @@ export function RegisterPatient({onRegistered}:{onRegistered:(p:{id:string;name:
       {donePhoto&&<img src={donePhoto} width={120} alt={'Registered photo of '+done.name}/>}
       {qr&&<img src={qr} width={160} height={160} alt={'Opaque emergency locator QR for '+done.name}/>}
     </div>}
-  </section>;
+  </section></Localized>;
 }

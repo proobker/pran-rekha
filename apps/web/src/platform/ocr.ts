@@ -127,3 +127,14 @@ export async function recognize(source:Source,onProgress:(p:OcrProgress)=>void=(
   if(!trocr&&!tesseract)throw new Error('No OCR engine available');
   return done(pick(trocr,tesseract,boxes).filter(l=>l.text),trocr?TROCR_ENGINE:TESSERACT_ENGINE);
 }
+
+// Printed laboratory reports are usually tables. Read the prepared page as a page, rather than
+// segmenting rows and passing them through handwriting recognition or prescription correction.
+// In particular, numeric results and units must remain exactly as the OCR engine saw them.
+export async function recognizeLabReport(source:Source,onProgress:(p:OcrProgress)=>void=()=>{}):Promise<OcrResult>{
+  onProgress({stage:'preparing'});
+  const {canvas}=prepare(source);
+  onProgress({stage:'reading',line:1,total:1});
+  const lines=await recognizeTesseract(canvas);
+  return {text:lines.map(line=>line.text).join('\n'),lines,engine:'tesseract.js@7.0.0/eng-best_int/printed-page'};
+}
