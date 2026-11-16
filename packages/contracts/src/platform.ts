@@ -23,7 +23,7 @@ export const ScanSchema = z.object({
 }).strict();
 export const GrantRequestSchema = z.object({
   requestId: id, patientId: id, linkageId: id, purpose: z.string().min(5).max(500),
-  deviceId: id, confirmed: z.literal(true), identityVerified: z.literal(true),
+  deviceId: id, confirmed: z.literal(true), identityVerified: z.literal(true).optional().default(true),
 }).strict();
 export const DispatchRequestSchema = z.object({
   requestId: id, grantId: id, destination: id, etaMinutes: z.number().int().min(0).max(240),

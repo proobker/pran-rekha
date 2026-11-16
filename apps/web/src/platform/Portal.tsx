@@ -13,6 +13,7 @@ import { FaceLookup } from './FaceLookup';
 import { RegisterPatient } from './RegisterPatient';
 import { EnrollFace } from './EnrollFace';
 import { HandwrittenUpdate } from './HandwrittenUpdate';
+import { LinkCard } from './LinkCard';
 
 type PortalName='patient'|'paramedic'|'hospital'|'lab';
 type Context={staff:{role:string;facility:string;unit:string;reader:string};patients:{id:string;name:string}[]};
@@ -180,7 +181,7 @@ export default function Portal({portal}:{portal:PortalName}) {
           <label>Trauma category<select value={category} onChange={e=>setCategory(e.target.value)}>{traumaCategories.map(c=><option key={c}>{c}</option>)}</select></label>
           <label>{t.purpose}<textarea value={purpose} onChange={e=>setPurpose(e.target.value)}/></label>
           <label className="check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>{t.confirm}</label>
-          <button disabled={!confirmed||!link} className="primary" onClick={()=>void run(async()=>{const g=await api<{id:string}>('platform/grants',{requestId:requestId(),...link,purpose:category+': '+purpose,deviceId:'staff-browser',confirmed:true});setGrantId(g.id);setCard(await api('platform/cards',{grantId:g.id}));})}>Open approved emergency summary</button>
+          <button disabled={!confirmed||!link} className="primary" onClick={()=>void run(async()=>{const g=await api<{id:string}>('platform/grants',{requestId:requestId(),...link,purpose:category+': '+purpose,deviceId:'staff-browser',confirmed:true,identityVerified:true});setGrantId(g.id);setCard(await api('platform/cards',{grantId:g.id}));})}>Open approved emergency summary</button>
           <label>Arriving in {eta} minutes<input type="range" min={0} max={120} value={eta} onChange={e=>setEta(Number(e.target.value))}/></label><p>Destination: Pran Rekha Demonstration Hospital</p>
           <button className="dispatch" disabled={!grantId} onClick={()=>void run(async()=>{const result=await api<{id:string}>('platform/dispatch',{requestId:requestId(),grantId,destination:'hospital-demo',etaMinutes:eta});const channel=new BroadcastChannel('pran-events');channel.postMessage({id:result.id});channel.close();setMessage('Dispatch committed. The destination hospital can now read its approved scope.');})}>Initiate pre-arrival ER stream</button>
         </section>
@@ -202,7 +203,8 @@ export default function Portal({portal}:{portal:PortalName}) {
             {a.status!=='RESOLVED'&&<button className="primary" onClick={()=>void run(async()=>{await api('platform/alerts/'+a.id+'/status',{requestId:requestId(),expectedRevision:a.revision,status:a.status==='EN_ROUTE'?'ARRIVED':'RESOLVED'});await refresh();})}>{a.status==='EN_ROUTE'?'Mark arrived':'Resolve'}</button>}
           </article>)}</div>)}</div>
       </section>}
-      {portal==='hospital'&&<details className="surface wide disclosure"><summary><span>Patient and document tools</span><span className="disclosure-meta">Registration · records · face lookup</span></summary><div className="tool-stack">
+      {portal==='hospital'&&<details className="surface wide disclosure"><summary><span>Patient and document tools</span><span className="disclosure-meta">Registration · RFID card link · records · face lookup</span></summary><div className="tool-stack">
+        <LinkCard patients={context?.patients??[]} onLinked={refresh}/>
         <RegisterPatient onRegistered={p=>{setRegistered(r=>[...r,p]);void refresh().catch(()=>{});}}/>
         <EnrollFace patients={context?.patients??[]}/>
         <HandwrittenUpdate patients={context?.patients??[]} onChange={refresh}/>
