@@ -13,15 +13,11 @@ $publicOrigin = 'https://pranrekha.rabidahal.com.np'
 $ssh = (Get-Command ssh.exe -ErrorAction Stop).Source
 $scp = (Get-Command scp.exe -ErrorAction Stop).Source
 $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
-$cloudflared = Join-Path $workspace 'node_modules\cloudflared\bin\cloudflared.exe'
-$cloudflareTokenStore = Join-Path $env:LOCALAPPDATA 'PranRekha\cloudflare-tunnel-token.dpapi'
 $pythonBridge = Join-Path $workspace 'firmware\pi_bridge\scanner.py'
 $serviceUnit = Join-Path $workspace 'firmware\pi_bridge\patient-scanner.service'
 $startupDir = Join-Path $workspace '.data\scanner-startup'
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ('pran-scanner-' + [guid]::NewGuid().ToString('N'))
 $appProcess = $null
-$cloudflareProcess = $null
-$runtimeTokenDir = $null
 
 function Test-ApiReady {
   try {
@@ -60,9 +56,6 @@ if (-not (Test-Path -LiteralPath (Join-Path $workspace 'node_modules'))) {
 if (-not (Test-Path -LiteralPath $pythonBridge) -or -not (Test-Path -LiteralPath $serviceUnit)) {
   throw 'The scanner bridge or its systemd service file is missing from this checkout.'
 }
-if (-not (Test-Path -LiteralPath $cloudflared)) {
-  throw 'cloudflared is missing. From the workspace, run: npm.cmd install'
-}
 
 New-Item -ItemType Directory -Path $startupDir -Force | Out-Null
 if (-not (Test-ApiReady)) {
@@ -91,21 +84,6 @@ $remote = "$ScannerUser@$ScannerHost"
 Write-Host "Checking SSH access to $remote before provisioning a new reader credential."
 & $ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=10 $remote 'true'
 if ($LASTEXITCODE -ne 0) { throw 'SSH login failed. Confirm the Pi password or restore an authorized SSH key, then rerun this script.' }
-
-if (Test-Path -LiteralPath $cloudflareTokenStore) {
-  $cloudflareTokenSecure = (Get-Content -LiteralPath $cloudflareTokenStore -Raw).Trim() | ConvertTo-SecureString
-} else {
-  $cloudflareTokenSecure = Read-Host -AsSecureString -Prompt 'Cloudflare named tunnel token (Dashboard > Networking > Tunnels > Add a replica)'
-  if (-not $cloudflareTokenSecure -or $cloudflareTokenSecure.Length -eq 0) {
-    throw 'A Cloudflare tunnel token is required to restore the public hostname.'
-  }
-  $tokenParent = Split-Path -Parent $cloudflareTokenStore
-  New-Item -ItemType Directory -Path $tokenParent -Force | Out-Null
-  $cloudflareTokenSecure | ConvertFrom-SecureString | Set-Content -LiteralPath $cloudflareTokenStore -NoNewline
-}
-$tokenPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($cloudflareTokenSecure)
-try { $cloudflareToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($tokenPointer) }
-finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($tokenPointer) }
 
 $adminCredential = Get-Credential -UserName 'admin' -Message 'Local Pran Rekha demo admin account (default password: pran-demo-admin)'
 $adminPassword = $adminCredential.GetNetworkCredential().Password
@@ -180,52 +158,15 @@ rm -rf "$HOME/.bootstrap" "$HOME/scanner-bootstrap.zip"
   if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force }
 }
 
-$runtimeTokenDir = Join-Path $env:TEMP ('pran-cloudflare-' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $runtimeTokenDir -Force | Out-Null
-$tokenAcl = Get-Acl -LiteralPath $runtimeTokenDir
-$tokenAcl.SetAccessRuleProtection($true, $false)
-$tokenRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-  [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
-  'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
-$tokenAcl.SetAccessRule($tokenRule)
-Set-Acl -LiteralPath $runtimeTokenDir -AclObject $tokenAcl
-$runtimeTokenFile = Join-Path $runtimeTokenDir 'token'
-[System.IO.File]::WriteAllText($runtimeTokenFile, $cloudflareToken, [System.Text.Encoding]::ASCII)
-$cloudflareToken = $null
-
 try {
-  Write-Host "Starting the named Cloudflare tunnel for $publicOrigin..."
-  $cloudflareProcess = Start-Process -FilePath $cloudflared `
-    -ArgumentList @('tunnel', '--no-autoupdate', 'run', '--token-file', $runtimeTokenFile) `
-    -WorkingDirectory $workspace `
-    -WindowStyle Hidden `
-    -RedirectStandardOutput (Join-Path $startupDir 'cloudflared.log') `
-    -RedirectStandardError (Join-Path $startupDir 'cloudflared.err.log') `
-    -PassThru
-
-  $siteReady = $false
-  for ($attempt = 0; $attempt -lt 30; $attempt++) {
-    if ($cloudflareProcess.HasExited) { throw "cloudflared exited. Check $startupDir\cloudflared.err.log and the saved dashboard token." }
-    try {
-      $response = Invoke-WebRequest -Uri $publicOrigin -Method Get -UseBasicParsing -TimeoutSec 5
-      if ([int]$response.StatusCode -eq 200) { $siteReady = $true; break }
-    } catch { }
-    Start-Sleep -Seconds 2
-  }
-  if (-not $siteReady) {
-    throw "The tunnel process is running, but $publicOrigin did not return HTTP 200. Check the Cloudflare public-hostname origin points to http://localhost:5173 and review the tunnel logs."
-  }
-
-  Write-Host "`nWebsite is serving at $publicOrigin. Scanner bridge is installed."
-  Write-Host "Open $webOrigin (or the public URL) and sign in to the paramedic portal."
+  Write-Host "`nScanner bridge is installed."
+  Write-Host "Open $webOrigin (or your deployed Render URL) and sign in to the paramedic portal."
   Write-Host 'The reader should show "Tap RFID card"; bridge logs should report Arduino STATUS with RFID=OK and the LCD address.'
-  Write-Host 'Keep this window open. Ctrl+C stops the site tunnel and app API tunnel.'
+  Write-Host 'Keep this window open. Ctrl+C stops the app and API tunnel.'
   Write-Host 'Starting the reverse SSH tunnel from the Pi to the local API on port 4100...'
   & $ssh -N -T -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 `
     -R 127.0.0.1:14100:127.0.0.1:4100 "$ScannerUser@$ScannerHost"
   if ($LASTEXITCODE -ne 0) { throw 'The SSH API tunnel exited. Check the Pi SSH connection and whether port 14100 is in use.' }
 } finally {
-  if ($cloudflareProcess -and -not $cloudflareProcess.HasExited) { Stop-Process -Id $cloudflareProcess.Id -Force -ErrorAction SilentlyContinue }
-  if ($runtimeTokenDir -and (Test-Path -LiteralPath $runtimeTokenDir)) { Remove-Item -LiteralPath $runtimeTokenDir -Recurse -Force }
   if ($appProcess -and -not $appProcess.HasExited) { & taskkill.exe /PID $appProcess.Id /T /F 2>$null | Out-Null }
 }

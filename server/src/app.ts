@@ -47,11 +47,12 @@ export function createApp(options: AppOptions) {
   const app = express();
   const repository = new Repository(options.database);
   const platform = new PlatformStore(options.database);
-  const demoFixtures = options.demoFixtures ?? process.env.NODE_ENV !== 'production';
-  if (process.env.NODE_ENV === 'production' && demoFixtures) {
+  const isDemo = process.env.DEMO_MODE === 'true' || process.env.NODE_ENV !== 'production';
+  const demoFixtures = options.demoFixtures ?? isDemo;
+  if (process.env.NODE_ENV === 'production' && demoFixtures && process.env.DEMO_MODE !== 'true') {
     throw new Error('Demo fixtures cannot be enabled in production.');
   }
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') {
     const demoAccount = options.database.prepare(
       "SELECT 1 FROM actors WHERE username IN ('siddharth','paramedic','lab','hospital','approver','admin','maya.patient','demo.clinician') LIMIT 1"
     ).get();
@@ -81,8 +82,12 @@ export function createApp(options: AppOptions) {
   app.use((request, response, next) => {
     if (['POST','PUT','PATCH','DELETE'].includes(request.method)) {
       const origin = request.header('origin');
-      // Comma-separated so a phone tunnel origin can be allowed alongside localhost.
-      const allowed = (process.env.PUBLIC_ORIGIN ?? 'http://localhost:5173').split(',').map(value => value.trim());
+      const allowed = (process.env.PUBLIC_ORIGIN ?? 'http://localhost:5173')
+        .split(',')
+        .map(value => value.trim());
+      if (process.env.RENDER_EXTERNAL_URL) {
+        allowed.push(process.env.RENDER_EXTERNAL_URL.trim());
+      }
       if (request.header('sec-fetch-site') === 'cross-site' || (origin && !allowed.includes(origin))) {
         response.status(403).json(errorBody('FORBIDDEN','Origin not allowed.',response.locals.requestId)); return;
       }

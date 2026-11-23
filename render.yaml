@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: pran-rekha
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: NEXT_PUBLIC_DEMO_MODE
+        value: "true"
+      - key: DATABASE_PATH
+        value: .data/pran-rekha-demo.sqlite

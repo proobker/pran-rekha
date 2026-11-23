@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev -p 5173",
     "dev:https": "next dev -p 5173 --hostname 0.0.0.0 --experimental-https",
-    "start": "next start -p 5173",
+    "start": "node scripts/start.mjs",
     "start:lan": "next start -p 5173 --hostname 0.0.0.0",
     "build": "next build",
     "typecheck": "tsc --noEmit",

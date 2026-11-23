@@ -35,14 +35,25 @@ describe('authenticated API boundary', () => {
 
   it('accepts any origin listed in PUBLIC_ORIGIN and rejects others', async () => {
     const previous = process.env.PUBLIC_ORIGIN;
-    process.env.PUBLIC_ORIGIN = 'http://localhost:5173, https://demo.trycloudflare.com';
+    process.env.PUBLIC_ORIGIN = 'http://localhost:5173, https://pran-rekha.onrender.com';
     try {
-      const tunnel = await request(app).post('/api/session').set('Origin', 'https://demo.trycloudflare.com').send(DEMO_CREDENTIALS.patient);
-      expect(tunnel.status).toBe(201);
+      const renderDeploy = await request(app).post('/api/session').set('Origin', 'https://pran-rekha.onrender.com').send(DEMO_CREDENTIALS.patient);
+      expect(renderDeploy.status).toBe(201);
       const other = await request(app).post('/api/session').set('Origin', 'https://evil.example').send(DEMO_CREDENTIALS.patient);
       expect(other.status).toBe(403);
     } finally {
       if (previous === undefined) delete process.env.PUBLIC_ORIGIN; else process.env.PUBLIC_ORIGIN = previous;
+    }
+  });
+
+  it('automatically accepts origin matching RENDER_EXTERNAL_URL', async () => {
+    const previous = process.env.RENDER_EXTERNAL_URL;
+    process.env.RENDER_EXTERNAL_URL = 'https://pran-rekha-live.onrender.com';
+    try {
+      const res = await request(app).post('/api/session').set('Origin', 'https://pran-rekha-live.onrender.com').send(DEMO_CREDENTIALS.patient);
+      expect(res.status).toBe(201);
+    } finally {
+      if (previous === undefined) delete process.env.RENDER_EXTERNAL_URL; else process.env.RENDER_EXTERNAL_URL = previous;
     }
   });
 

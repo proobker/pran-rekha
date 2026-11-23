@@ -8,9 +8,10 @@ const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const databasePath = resolve(workspaceRoot, process.env.DATABASE_PATH ?? '.data/pran-rekha-demo.sqlite');
 const database = openDatabase({ databasePath });
 const count = database.prepare('SELECT COUNT(*) AS count FROM patients').get() as { count: number };
-if (count.count === 0 && process.env.NODE_ENV !== 'production') seedDatabase(database);
+const allowDemo = process.env.DEMO_MODE === 'true' || process.env.NODE_ENV !== 'production';
+if (count.count === 0 && allowDemo) seedDatabase(database);
 
-const port = Number(process.env.PORT ?? 4100);
+const port = Number(process.env.API_PORT ?? 4100);
 const app = createApp({ database });
 const server = app.listen(port, '127.0.0.1', () => {
   process.stdout.write(`Pran Rekha API listening at http://127.0.0.1:${port}\n`);
