@@ -317,6 +317,45 @@ export function platformRouter(store:PlatformStore,clock:()=>Date) {
       store.put('link',link.id,link);res.json({state:'CANDIDATE',eventId:scan.eventId,patientId:tag.patientId,linkageId:link.id});
     }catch(e){next(e);}
   });
+  router.get('/rfid/latest',(_req,res,next)=>{
+    try{
+      const s=res.locals.staff as Staff;if(!['paramedic','clinician'].includes(s.role))return unavailable();
+      const scans=store.all<{deviceId:string;tagUid:string;eventId:string;receivedAt:string}>('scan')
+        .filter(e=>Date.parse(e.receivedAt)>clock().getTime()-300000)
+        .sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt));
+      const scan=scans[0];
+      if(!scan){res.json({state:'NO_SCANS'});return;}
+      const tag=store.get<{patientId:string;revoked:boolean}>('tag',scan.tagUid);
+      const p=tag&&!tag.revoked?store.get<Profile>('profile',tag.patientId):undefined;
+      res.json({
+        state:'FOUND',
+        tagUid:scan.tagUid,
+        deviceId:scan.deviceId,
+        receivedAt:scan.receivedAt,
+        secondsAgo:Math.max(0,Math.round((clock().getTime()-Date.parse(scan.receivedAt))/1000)),
+        linkedPatient:p?{id:p.id,name:p.name}:undefined
+      });
+    }catch(e){next(e);}
+  });
+  router.post('/rfid/bind',(req,res,next)=>{
+    try{
+      const s=res.locals.staff as Staff;
+      if(!hospitalStaff(s)&&s.role!=='clinician')return unavailable();
+      const input=z.object({
+        requestId:text,
+        patientId:text,
+        tagUid:ScanSchema.shape.tagUid
+      }).strict().parse(req.body);
+      const p=store.get<Profile>('profile',input.patientId);
+      if(!p)throw new Error('INVALID_INPUT');
+      res.json(store.mutate(s.id,input.requestId,input,()=>{
+        store.put('tag',input.tagUid,{patientId:p.id,revoked:false});
+        store.put('demo-name-display',input.tagUid,{patientId:p.id,deviceId:'reader-pi-uno'});
+        store.receipt(p.id,s.id,'RFID card linked to patient profile',[],clock(),{tagUid:input.tagUid});
+        return {success:true,patientId:p.id,name:p.name,tagUid:input.tagUid};
+      }));
+    }catch(e){next(e);}
+  });
   router.post('/grants',(req,res,next)=>{
     try{
       const s=res.locals.staff as Staff,input=GrantRequestSchema.parse(req.body);
