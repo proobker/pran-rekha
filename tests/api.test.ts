@@ -1,29 +1,23 @@
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import type { DatabaseSync } from 'node:sqlite';
+import { resolve } from 'node:path';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../server/src/app';
-import { openDatabase } from '../server/src/storage/database';
+import { openDatabase, type Database } from '../server/src/storage/database';
 import { resolveDemoDatabasePath } from '../server/src/storage/demo-paths';
 import { DEMO_CLOCK, DEMO_CREDENTIALS, PRIMARY_PATIENT_ID, seedDatabase } from '../server/src/storage/seed';
 
 describe('authenticated API boundary', () => {
-  let directory: string;
-  let database: DatabaseSync;
-  let app: ReturnType<typeof createApp>;
+  let database: Database;
+  let app: Awaited<ReturnType<typeof createApp>>;
 
-  beforeEach(() => {
-    directory = mkdtempSync(join(tmpdir(), 'pran-rekha-'));
-    database = openDatabase({ databasePath: join(directory, 'test.sqlite') });
-    seedDatabase(database);
-    app = createApp({ database, clock: () => new Date(DEMO_CLOCK), secureCookies: false });
+  beforeEach(async () => {
+    database = await openDatabase({ url: ':memory:' });
+    await seedDatabase(database);
+    app = await createApp({ database, clock: () => new Date(DEMO_CLOCK), secureCookies: false });
   });
 
   afterEach(() => {
     database.close();
-    rmSync(directory, { recursive: true, force: true });
   });
 
   it('issues an HttpOnly session cookie bound to the patient record', async () => {

@@ -4,11 +4,18 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    region: oregon
+    region: singapore
+    healthCheckPath: /api/health
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: DEMO_MODE
         value: "true"
       - key: NEXT_PUBLIC_DEMO_MODE
         value: "true"
-      - key: DATABASE_PATH
-        value: .data/pran-rekha-demo.sqlite
+      - key: PUBLIC_ORIGIN
+        value: https://pranrekha.rabidahal.com.np
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

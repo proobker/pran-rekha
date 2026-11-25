@@ -2,14 +2,20 @@ param(
   [string]$ScannerHost = 'patient-scanner',
   [string]$ScannerUser = 'scanner',
   [string]$DeviceId = 'reader-pi-uno',
-  [string]$ParamedicActorId = 'portal-paramedic'
+  [string]$ParamedicActorId = 'portal-paramedic',
+  [string]$ApiOrigin = 'https://pranrekha.rabidahal.com.np',
+  [switch]$Local
 )
 
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
-$apiOrigin = 'http://127.0.0.1:4100'
 $webOrigin = 'http://localhost:5173'
 $publicOrigin = 'https://pranrekha.rabidahal.com.np'
+if ($Local) {
+  $ApiOrigin = 'http://127.0.0.1:4100'
+}
+$ApiOrigin = $ApiOrigin.TrimEnd('/')
+$isRemote = $ApiOrigin -notmatch '^http://(127\.0\.0\.1|localhost)(:\d+)?$'
 $ssh = (Get-Command ssh.exe -ErrorAction Stop).Source
 $scp = (Get-Command scp.exe -ErrorAction Stop).Source
 $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
@@ -21,7 +27,7 @@ $appProcess = $null
 
 function Test-ApiReady {
   try {
-    Invoke-WebRequest -Uri "$apiOrigin/api/session" -Method Get -UseBasicParsing | Out-Null
+    Invoke-WebRequest -Uri "$ApiOrigin/api/session" -Method Get -UseBasicParsing -TimeoutSec 10 | Out-Null
     return $true
   } catch {
     $response = $_.Exception.Response
@@ -32,7 +38,7 @@ function Test-ApiReady {
 
 function Test-PublicOriginAllowed {
   try {
-    Invoke-WebRequest -Uri "$apiOrigin/api/session" -Method Post -UseBasicParsing `
+    Invoke-WebRequest -Uri "$ApiOrigin/api/session" -Method Post -UseBasicParsing -TimeoutSec 10 `
       -Headers @{ Origin = $publicOrigin } -ContentType 'application/json' -Body '{}' | Out-Null
     return $true
   } catch {
@@ -47,37 +53,43 @@ function Wait-ForApi {
     if (Test-ApiReady) { return }
     Start-Sleep -Seconds 1
   }
-  throw "The local API did not start. Check $startupDir\api.err.log"
+  throw "The API at $ApiOrigin did not respond. Check $startupDir\app.err.log"
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $workspace 'node_modules'))) {
-  throw 'Dependencies are missing. From the workspace, run: npm.cmd install'
-}
 if (-not (Test-Path -LiteralPath $pythonBridge) -or -not (Test-Path -LiteralPath $serviceUnit)) {
   throw 'The scanner bridge or its systemd service file is missing from this checkout.'
 }
 
-New-Item -ItemType Directory -Path $startupDir -Force | Out-Null
-if (-not (Test-ApiReady)) {
-  $oldPublicOrigin = $env:PUBLIC_ORIGIN
-  $env:PUBLIC_ORIGIN = "$webOrigin,$publicOrigin"
-  try {
-    $appProcess = Start-Process -FilePath $npm `
-      -ArgumentList @('run', 'dev') `
-      -WorkingDirectory $workspace `
-      -WindowStyle Hidden `
-      -RedirectStandardOutput (Join-Path $startupDir 'app.log') `
-      -RedirectStandardError (Join-Path $startupDir 'app.err.log') `
-      -PassThru
-  } finally {
-    if ($null -eq $oldPublicOrigin) { Remove-Item Env:\PUBLIC_ORIGIN -ErrorAction SilentlyContinue }
-    else { $env:PUBLIC_ORIGIN = $oldPublicOrigin }
+if (-not $isRemote) {
+  if (-not (Test-Path -LiteralPath (Join-Path $workspace 'node_modules'))) {
+    throw 'Dependencies are missing. From the workspace, run: npm.cmd install'
   }
+  New-Item -ItemType Directory -Path $startupDir -Force | Out-Null
+  if (-not (Test-ApiReady)) {
+    $oldPublicOrigin = $env:PUBLIC_ORIGIN
+    $env:PUBLIC_ORIGIN = "$webOrigin,$publicOrigin"
+    try {
+      $appProcess = Start-Process -FilePath $npm `
+        -ArgumentList @('run', 'dev') `
+        -WorkingDirectory $workspace `
+        -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $startupDir 'app.log') `
+        -RedirectStandardError (Join-Path $startupDir 'app.err.log') `
+        -PassThru
+    } finally {
+      if ($null -eq $oldPublicOrigin) { Remove-Item Env:\PUBLIC_ORIGIN -ErrorAction SilentlyContinue }
+      else { $env:PUBLIC_ORIGIN = $oldPublicOrigin }
+    }
+    Wait-ForApi
+  }
+  Write-Host "Local app is ready at $webOrigin"
+  if (-not (Test-PublicOriginAllowed)) {
+    throw "The API already running on port 4100 does not allow $publicOrigin. Stop that app process, then rerun this script so it can start the API with the correct public origin."
+  }
+} else {
+  Write-Host "Waiting for remote API at $ApiOrigin..."
   Wait-ForApi
-}
-Write-Host "Local app is ready at $webOrigin"
-if (-not (Test-PublicOriginAllowed)) {
-  throw "The API already running on port 4100 does not allow $publicOrigin. Stop that app process, then rerun this script so it can start the API with the correct public origin."
+  Write-Host "Remote API is reachable at $ApiOrigin"
 }
 
 $remote = "$ScannerUser@$ScannerHost"
@@ -85,26 +97,27 @@ Write-Host "Checking SSH access to $remote before provisioning a new reader cred
 & $ssh -o StrictHostKeyChecking=yes -o ConnectTimeout=10 $remote 'true'
 if ($LASTEXITCODE -ne 0) { throw 'SSH login failed. Confirm the Pi password or restore an authorized SSH key, then rerun this script.' }
 
-$adminCredential = Get-Credential -UserName 'admin' -Message 'Local Pran Rekha demo admin account (default password: pran-demo-admin)'
+$adminCredential = Get-Credential -UserName 'admin' -Message 'Pran Rekha demo admin account (default password: pran-demo-admin)'
 $adminPassword = $adminCredential.GetNetworkCredential().Password
 $webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 $temporaryToken = $null
 
 try {
   $loginBody = @{ username = $adminCredential.UserName; password = $adminPassword } | ConvertTo-Json
-  Invoke-RestMethod -Uri "$apiOrigin/api/session" -Method Post -ContentType 'application/json' -Body $loginBody -WebSession $webSession | Out-Null
+  Invoke-RestMethod -Uri "$ApiOrigin/api/session" -Method Post -ContentType 'application/json' -Body $loginBody -WebSession $webSession | Out-Null
   $adminPassword = $null
 
   $provisionBody = @{ id = $DeviceId; actorId = $ParamedicActorId } | ConvertTo-Json
-  $reader = Invoke-RestMethod -Uri "$apiOrigin/api/platform/readers/provision" -Method Post `
+  $reader = Invoke-RestMethod -Uri "$ApiOrigin/api/platform/readers/provision" -Method Post `
     -ContentType 'application/json' -Body $provisionBody -WebSession $webSession
   if (-not $reader.token) { throw 'The API did not return a reader credential.' }
   $temporaryToken = $reader.token
   Write-Host "Provisioned reader '$DeviceId' and paired it to '$ParamedicActorId'."
 
   New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+  $piApiOrigin = if ($isRemote) { $ApiOrigin } else { 'http://127.0.0.1:14100' }
   $scannerEnv = @(
-    'API_ORIGIN=http://127.0.0.1:14100',
+    "API_ORIGIN=$piApiOrigin",
     "RFID_DEVICE_ID=$DeviceId",
     "RFID_DEVICE_TOKEN=$temporaryToken",
     'RFID_SERIAL_PORT=/dev/ttyACM0'
@@ -126,6 +139,7 @@ fi
 sudo loginctl enable-linger "$USER"
 systemctl --user daemon-reload
 systemctl --user enable --now patient-scanner.service
+systemctl --user restart patient-scanner.service
 sleep 2
 systemctl --user status patient-scanner.service --no-pager -l
 journalctl --user -u patient-scanner.service -n 20 --no-pager
@@ -158,15 +172,21 @@ rm -rf "$HOME/.bootstrap" "$HOME/scanner-bootstrap.zip"
   if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force }
 }
 
-try {
-  Write-Host "`nScanner bridge is installed."
-  Write-Host "Open $webOrigin (or your deployed Render URL) and sign in to the paramedic portal."
+if (-not $isRemote) {
+  try {
+    Write-Host "`nScanner bridge is installed."
+    Write-Host "Open $webOrigin and sign in to the paramedic portal."
+    Write-Host 'The reader should show "Tap RFID card"; bridge logs should report Arduino STATUS with RFID=OK and the LCD address.'
+    Write-Host 'Keep this window open. Ctrl+C stops the app and API tunnel.'
+    Write-Host 'Starting the reverse SSH tunnel from the Pi to the local API on port 4100...'
+    & $ssh -N -T -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 `
+      -R 127.0.0.1:14100:127.0.0.1:4100 "$ScannerUser@$ScannerHost"
+    if ($LASTEXITCODE -ne 0) { throw 'The SSH API tunnel exited. Check the Pi SSH connection and whether port 14100 is in use.' }
+  } finally {
+    if ($appProcess -and -not $appProcess.HasExited) { & taskkill.exe /PID $appProcess.Id /T /F 2>$null | Out-Null }
+  }
+} else {
+  Write-Host "`nScanner bridge is installed and connected directly to $ApiOrigin (no laptop tunnel needed)."
+  Write-Host "Open $ApiOrigin/paramedic and sign in to the paramedic portal."
   Write-Host 'The reader should show "Tap RFID card"; bridge logs should report Arduino STATUS with RFID=OK and the LCD address.'
-  Write-Host 'Keep this window open. Ctrl+C stops the app and API tunnel.'
-  Write-Host 'Starting the reverse SSH tunnel from the Pi to the local API on port 4100...'
-  & $ssh -N -T -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 `
-    -R 127.0.0.1:14100:127.0.0.1:4100 "$ScannerUser@$ScannerHost"
-  if ($LASTEXITCODE -ne 0) { throw 'The SSH API tunnel exited. Check the Pi SSH connection and whether port 14100 is in use.' }
-} finally {
-  if ($appProcess -and -not $appProcess.HasExited) { & taskkill.exe /PID $appProcess.Id /T /F 2>$null | Out-Null }
 }

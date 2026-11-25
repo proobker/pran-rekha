@@ -20,11 +20,12 @@ COPY server ./server
 COPY apps/web ./apps/web
 
 # Build contracts, domain, server, and Next.js web application
+ENV NODE_ENV=production
 ENV DEMO_MODE=true
 ENV NEXT_PUBLIC_DEMO_MODE=true
 RUN npm run build
 
-# Prepare persistent or ephemeral database directory
+# Prepare fallback local database directory and hand ownership to non-root user
 RUN mkdir -p .data && chown -R node:node /app
 
 USER node

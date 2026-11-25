@@ -4,7 +4,7 @@ Voiceover for `media/full-demo-short.mp4` (1:08). Timestamps match the on-screen
 
 | Time | Scene | Voiceover |
 |------|-------|-----------|
-| 0:00 | Title | In an emergency, the first hour decides everything, and responders arrive knowing nothing. This is Pran Rekha. Let's walk through the demo. |
+| 0:00 | Title | This is Pran Rekha. Let's walk through the demo. |
 | 0:05 | 1 · Hospital | A hospital registers the patient. Nothing is shared yet. |
 | 0:10 | 2 · Lab | A lab scans a report. On-device OCR, checked line by line. |
 | 0:20 | 3 · Patient | The patient decides what responders can see, and can revoke it anytime. |
