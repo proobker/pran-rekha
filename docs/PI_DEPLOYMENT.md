@@ -77,7 +77,7 @@ Arduino STATUS   RFID=OK   VERSION=92   LCD=0x27
 
 ```
 RFID card → Uno → USB serial → Pi bridge (scanner.py) → Pi API :4100
-Browser → Cloudflare → cloudflared tunnel → Pi web :5173 → /api → :4100
+Browser → Render (HTTPS) → Pi web :5173 → /api → :4100
 ```
 
 ## Services (systemd --user, lingering enabled → auto-start on boot)
@@ -87,7 +87,6 @@ Browser → Cloudflare → cloudflared tunnel → Pi web :5173 → /api → :410
 | `patient-scanner.service`   | Arduino serial bridge (`scanner.py`)  |
 | `pran-rekha-api.service`    | API server, port 4100                 |
 | `pran-rekha-web.service`    | Next.js web app, port 5173            |
-| `cloudflared.service`       | Cloudflare tunnel → public URL        |
 
 Common commands (run on the Pi as `scanner`):
 

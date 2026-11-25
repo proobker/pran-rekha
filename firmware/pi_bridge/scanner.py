@@ -47,8 +47,8 @@ class Api:
     def call(self, path, body=None):
         data = None if body is None else json.dumps(body).encode()
         req = Request(self.origin + "/api/platform" + path, data=data,
-                      headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json"})
-        with urlopen(req, timeout=2) as response:
+                      headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json", "User-Agent": "PranRekha-Scanner/1.0"})
+        with urlopen(req, timeout=10) as response:
             raw = response.read(1_000_001)
             if len(raw) > 1_000_000:
                 raise ValueError("API response too large")

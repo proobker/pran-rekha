@@ -12,6 +12,7 @@
     "reset": "tsx src/storage/reset-cli.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@pran-rekha/contracts": "*",
     "@pran-rekha/domain": "*",
     "express": "^5.1.0",

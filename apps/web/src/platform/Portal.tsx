@@ -34,8 +34,9 @@ export default function Portal({portal}:{portal:PortalName}) {
   const {language,setLanguage,theme,setTheme}=usePreferences();const t=labels[language];
   const [session,setSession]=useState<SessionResponse|null>(null),[context,setContext]=useState<Context|null>(null);
   const [profile,setProfile]=useState<PlatformProfile|null>(null),[error,setError]=useState(''),[message,setMessage]=useState('');
-  const [busy,setBusy]=useState(false),[username,setUsername]=useState(process.env.NODE_ENV==='production'?'':portal==='patient'?'siddharth':portal);
-  const [password,setPassword]=useState(process.env.NODE_ENV==='production'?'':'pran-demo-'+(portal==='patient'?'siddharth':portal));
+  const isProduction = process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_DEMO_MODE !== 'true';
+  const [busy,setBusy]=useState(false),[username,setUsername]=useState(isProduction?'':portal==='patient'?'siddharth':portal);
+  const [password,setPassword]=useState(isProduction?'':'pran-demo-'+(portal==='patient'?'siddharth':portal));
   const [allowed,setAllowed]=useState<string[]>([]),[receipts,setReceipts]=useState<Record<string,unknown>[]>([]);
   const [alerts,setAlerts]=useState<Alert[]>([]),[ledger,setLedger]=useState<Record<string,unknown>[]>([]);
   const [locator,setLocator]=useState('');
@@ -132,7 +133,7 @@ export default function Portal({portal}:{portal:PortalName}) {
       {!session?<section className="surface login-panel"><h2>{t.signIn}</h2><form onSubmit={e=>{e.preventDefault();void run(login);}}>
         <label>{t.name}<input value={username} onChange={e=>setUsername(e.target.value)} autoComplete="username"/></label>
         <label>{t.password}<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>
-        <button className="primary" disabled={busy}>{t.signIn}</button></form>{process.env.NODE_ENV!=='production'&&<p className="login-hint">Demo accounts: siddharth, paramedic, hospital and lab. Password: pran-demo- followed by username.</p>}</section>
+        <button className="primary" disabled={busy}>{t.signIn}</button></form>{!isProduction&&<p className="login-hint">Demo accounts: siddharth, paramedic, hospital and lab. Password: pran-demo- followed by username.</p>}</section>
       :!isAllowed?<section className="surface"><h2>This account has no access to this portal.</h2><p>Sign out and authenticate with the provisioned account for this role.</p></section>:<>
 
       {portal==='patient'&&profile&&<div className="portal-grid">

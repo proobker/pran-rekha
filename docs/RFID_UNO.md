@@ -123,7 +123,7 @@ The SSH tunnel still needs to be started from the laptop after a restart.
 
 ## One-command recovery from Windows
 
-After reinstalling Raspberry Pi OS, run `.\scripts\start-scanner.ps1` from the project root. It starts the local demo app, provisions a fresh reader credential, installs the bridge and user service on the Pi, starts the named Cloudflare tunnel, and opens the reverse API tunnel. On first run, enter a remotely-managed Cloudflare Tunnel token from **Cloudflare Dashboard → Networking → Tunnels → Add a replica**; Windows protects the saved token for your account. Enter the local demo admin credentials and Pi SSH password when prompted. The Cloudflare public-hostname origin must be `http://localhost:5173` because the connector runs on this laptop. Leave the script window open while scanning and serving the website. The Pi must be reachable as `patient-scanner`, and the Arduino must be connected over USB.
+After reinstalling Raspberry Pi OS, run `.\scripts\start-scanner.ps1` from the project root. It starts the local demo app, provisions a fresh reader credential, installs the bridge and user service on the Pi, and opens the reverse API tunnel. Enter the local demo admin credentials and Pi SSH password when prompted. Leave the script window open while scanning and serving the website. The Pi must be reachable as `patient-scanner`, and the Arduino must be connected over USB.
 
 ## Using real cards
 

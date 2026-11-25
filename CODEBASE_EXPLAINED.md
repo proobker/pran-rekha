@@ -477,7 +477,6 @@ The Uno removes duplicate rapid taps and clears patient text after eight seconds
 | `scripts/simulate-rfid.mjs` | Sends one authenticated fake card scan (`npm run rfid:simulate`) |
 | `scripts/capture-rfid-cards.mjs` | Collects seven physical cards in first-seen order without assigning patients yet |
 | `scripts/enroll-demo-batch.ts` | Generates private passwords first, then atomically registers a named seven-card batch |
-| `scripts/phone.mjs` | Builds the app, opens a temporary Cloudflare HTTPS tunnel, starts both servers, and prints a QR code (`npm run phone`) |
 | `apps/web/scripts/generate-icons.mjs` | Rebuilds PWA icons from source artwork |
 | `firmware/rc522` | ESP32 Wi-Fi reader implementation |
 | `firmware/uno_scanner` | Arduino reader and LCD implementation |
@@ -556,7 +555,6 @@ This is a thoughtful hackathon prototype, not a production clinical system.
 - The two older login fixtures (`maya.patient`, `demo.clinician`) exist only for tests and see no data.
 - No production backup, disaster recovery, key rotation, regulatory validation, clinical governance, or real identity proofing is implemented.
 - Nepali copy still needs native-speaker review, and verified Bikram Sambat conversion is intentionally unavailable.
-- The Cloudflare quick tunnel is a demo convenience, not a production deployment plan.
 - OCR and face matching can be wrong, so the design keeps them as human-reviewed suggestions.
 
 ## Tiny glossary
